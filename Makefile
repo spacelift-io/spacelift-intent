@@ -34,11 +34,6 @@ test:
 lint:
 	golangci-lint run
 
-# Test standalone mode validation
-test-validation: build
-	@echo "Testing standalone mode validation..."
-	./$(BUILD_DIR)/spacelift-intent --validate-only
-
 # Install dependencies
 deps:
 	go mod download
