@@ -18,14 +18,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY cmd/standalone cmd/standalone
-COPY instructions instructions
-COPY proto proto
-COPY provider provider
-COPY registry registry
-COPY storage storage
-COPY tools tools
-COPY types types
+COPY . .
 
 # Generate proto files dynamically
 RUN go generate ./...
@@ -33,7 +26,7 @@ RUN go generate ./...
 RUN mkdir -p /app/bin
 
 # Build the application (pure Go, no CGO needed)
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/bin/standalone ./cmd/standalone
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /app/bin/spacelift-intent ./cmd/spacelift-intent
 
 
 # Runtime stage
@@ -46,7 +39,7 @@ RUN apk add --no-cache wget unzip ca-certificates
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /app/bin/standalone .
+COPY --from=builder /app/bin/spacelift-intent .
 
 # Expose stdio for MCP protocol
-CMD ["./standalone"]
+CMD ["./spacelift-intent"]
