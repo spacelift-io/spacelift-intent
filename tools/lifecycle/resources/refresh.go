@@ -8,8 +8,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 
-	i "spacelift-intent-mcp/tools/internal"
-	"spacelift-intent-mcp/types"
+	i "spacelift-intent/tools/internal"
+	"spacelift-intent/types"
 )
 
 type refreshArgs struct {

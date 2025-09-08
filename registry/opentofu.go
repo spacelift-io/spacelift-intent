@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"spacelift-intent-mcp/types"
+	"spacelift-intent/types"
 )
 
 const (

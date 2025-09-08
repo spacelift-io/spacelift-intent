@@ -1,4 +1,4 @@
-module spacelift-intent-mcp
+module spacelift-intent
 
 go 1.23.8
 

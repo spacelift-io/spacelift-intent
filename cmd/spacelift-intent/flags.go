@@ -7,7 +7,7 @@ var (
 		Name:    "tmp-dir",
 		EnvVars: []string{"TMP_DIR"},
 		Usage:   "Temporary directory for provider binaries and state",
-		Value:   "/tmp/spacelift-intent-mcp-executor",
+		Value:   "/tmp/spacelift-intent-executor",
 	}
 	// Standalone-specific flags
 	dbDirFlag = &cli.StringFlag{

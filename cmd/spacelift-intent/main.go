@@ -14,7 +14,7 @@ import (
 
 func main() {
 	app := &cli.App{
-		Name:        "spacelift-intent-mcp-standalone",
+		Name:        "spacelift-intent-standalone",
 		Usage:       "Spacelift Intent MCP Server",
 		Description: "Infrastructure management server",
 		Flags:       []cli.Flag{tmpDirFlag, dbDirFlag},

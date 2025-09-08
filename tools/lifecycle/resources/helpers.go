@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"spacelift-intent-mcp/types"
+	"spacelift-intent/types"
 
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/mcp"

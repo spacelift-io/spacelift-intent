@@ -19,8 +19,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "spacelift-intent-mcp/generated/tfplugin5"
-	"spacelift-intent-mcp/types"
+	pb "spacelift-intent/generated/tfplugin5"
+	"spacelift-intent/types"
 )
 
 var ErrorBinaryNotFound = fmt.Errorf("provider binary not found")

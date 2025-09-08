@@ -9,12 +9,12 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"spacelift-intent-mcp/instructions"
-	"spacelift-intent-mcp/provider"
-	"spacelift-intent-mcp/registry"
-	"spacelift-intent-mcp/storage"
-	"spacelift-intent-mcp/tools"
-	"spacelift-intent-mcp/types"
+	"spacelift-intent/instructions"
+	"spacelift-intent/provider"
+	"spacelift-intent/registry"
+	"spacelift-intent/storage"
+	"spacelift-intent/tools"
+	"spacelift-intent/types"
 )
 
 // Server implements the StandaloneServer interface
@@ -65,7 +65,7 @@ func newServer(config *Config) (*Server, error) {
 	}
 
 	s.mcp = server.NewMCPServer(
-		"spacelift-intent-mcp",
+		"spacelift-intent",
 		"1.0.0",
 		server.WithToolCapabilities(false),
 		server.WithLogging(),

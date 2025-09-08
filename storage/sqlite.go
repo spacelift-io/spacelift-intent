@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 
-	"spacelift-intent-mcp/types"
+	"spacelift-intent/types"
 )
 
 // sqliteStorage implements types.Storage using SQLite

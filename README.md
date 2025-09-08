@@ -13,5 +13,5 @@ go generate ./... && make build-standalone
 2. Add server to you MCP host, e.g. to Claude Code:
 
 ```bash
-claude mcp add spacelift-intent-mcp -- `pwd`/bin/spacelift-intent
+claude mcp add spacelift-intent -- `pwd`/bin/spacelift-intent
 ```
