@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/urfave/cli/v2"
-
-	cliflags "spacelift-intent-mcp/internal/cli"
-	"spacelift-intent-mcp/pkg/standalone"
 )
 
 func main() {
@@ -20,22 +17,18 @@ func main() {
 		Name:        "spacelift-intent-mcp-standalone",
 		Usage:       "OpenTofu MCP Server (Standalone Mode)",
 		Description: "Standalone mode OpenTofu MCP Server with all functionality in a single binary",
-		Flags:       cliflags.StandaloneServerFlags(),
+		Flags:       []cli.Flag{tmpDirFlag, dbDirFlag},
 		Action: func(c *cli.Context) error {
-			port := c.Int(cliflags.PortFlag.Name)
-			serverType := c.String(cliflags.ServerTypeFlag.Name)
-			tmpDir := c.String(cliflags.TmpDirFlag.Name)
-			dbDir := c.String(cliflags.DBDirFlag.Name)
+			tmpDir := c.String(tmpDirFlag.Name)
+			dbDir := c.String(dbDirFlag.Name)
 
 			// Create standalone server
-			config := &standalone.Config{
-				Port:       port,
-				ServerType: serverType,
-				TmpDir:     tmpDir,
-				DBDir:      dbDir,
+			config := &Config{
+				TmpDir: tmpDir,
+				DBDir:  dbDir,
 			}
 
-			server, err := standalone.NewServer(config)
+			server, err := newServer(config)
 			if err != nil {
 				return fmt.Errorf("failed to create standalone server: %w", err)
 			}
@@ -45,7 +38,7 @@ func main() {
 
 			errChan := make(chan error, 1)
 			go func() {
-				if err := server.Start(ctx); err != nil {
+				if err := server.start(ctx); err != nil {
 					errChan <- err
 				}
 			}()
@@ -62,7 +55,7 @@ func main() {
 			ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 
-			server.Stop(ctx)
+			server.stop(ctx)
 
 			log.Println("Standalone server shut down")
 

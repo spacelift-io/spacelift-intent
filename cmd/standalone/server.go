@@ -1,4 +1,4 @@
-package standalone
+package main
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"spacelift-intent-mcp/instructions"
-	"spacelift-intent-mcp/internal/filesystem"
 	"spacelift-intent-mcp/provider"
 	"spacelift-intent-mcp/registry"
 	"spacelift-intent-mcp/storage"
@@ -30,20 +29,18 @@ type Server struct {
 
 // Config holds configuration for standalone server
 type Config struct {
-	Port       int
-	ServerType string
-	TmpDir     string
-	DBDir      string
+	TmpDir string
+	DBDir  string
 }
 
-// NewServer creates a new standalone server instance
-func NewServer(config *Config) (*Server, error) {
+// newServer creates a new standalone server instance
+func newServer(config *Config) (*Server, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
 
 	// Ensure directories exist
-	if err := filesystem.EnsureDirs(config.TmpDir, config.DBDir); err != nil {
+	if err := ensureDirs(config.TmpDir, config.DBDir); err != nil {
 		return nil, err
 	}
 
@@ -81,9 +78,9 @@ func NewServer(config *Config) (*Server, error) {
 	return s, nil
 }
 
-// Start starts the server with the given configuration
-func (s *Server) Start(ctx context.Context) error {
-	log.Printf("Starting standalone server in %s mode", s.config.ServerType)
+// start starts the server with the given configuration
+func (s *Server) start(ctx context.Context) error {
+	log.Printf("Starting standalone server in stdio mode")
 
 	log.Printf("Starting MCP stdio server")
 
@@ -103,8 +100,8 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 }
 
-// Stop gracefully shuts down the server
-func (s *Server) Stop(ctx context.Context) error {
+// stop gracefully shuts down the server
+func (s *Server) stop(ctx context.Context) error {
 	log.Println("Stopping standalone server")
 
 	if s.providerManager != nil {
@@ -119,21 +116,6 @@ func (s *Server) Stop(ctx context.Context) error {
 
 	log.Println("Standalone server stopped")
 	return nil
-}
-
-// GetMode returns the current operational mode
-func (s *Server) GetMode() string {
-	return "standalone"
-}
-
-// Run starts the server in standalone mode (legacy compatibility method)
-func (s *Server) Run(port int, serverType string) error {
-	// Update config with provided parameters
-	s.config.Port = port
-	s.config.ServerType = serverType
-
-	// Start with background context
-	return s.Start(context.Background())
 }
 
 // AddTool registers an MCP tool handler
