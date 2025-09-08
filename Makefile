@@ -1,4 +1,4 @@
-# Project Squirrel - Build Configuration
+# Project Spacelift Intent MCP - Build Configuration
 
 .PHONY: all build build-standalone clean test lint
 
@@ -18,7 +18,7 @@ build: build-standalone
 build-standalone:
 	@echo "Building standalone server..."
 	@mkdir -p $(BUILD_DIR)
-	go build $(GO_BUILD_FLAGS) -o $(BUILD_DIR)/squirrel-standalone ./cmd/standalone
+	go build $(GO_BUILD_FLAGS) -o $(BUILD_DIR)/spacelift-intent ./cmd/spacelift-intent
 
 
 # Clean build artifacts
@@ -37,7 +37,7 @@ lint:
 # Test standalone mode validation
 test-validation: build
 	@echo "Testing standalone mode validation..."
-	./$(BUILD_DIR)/squirrel-standalone --validate-only
+	./$(BUILD_DIR)/spacelift-intent --validate-only
 
 # Install dependencies
 deps:
@@ -51,7 +51,7 @@ fmt:
 
 # Run standalone server
 run-standalone:
-	./$(BUILD_DIR)/squirrel-standalone --server-type=http --port=11995
+	./$(BUILD_DIR)/spacelift-intent --server-type=http --port=11995
 
 # Display help
 help:
