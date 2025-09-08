@@ -18,8 +18,8 @@ type createArgs struct {
 	Config       map[string]any `json:"config"`
 }
 
-func Create(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-create"),
 		Description: "Create a new managed resource of any type from any provider with required ID, " +
 			"then store in the state. Core tool for the Execution Phase - handles internal " +
@@ -56,7 +56,7 @@ func Create(storage types.Storage, providerManager types.ProviderManager) (mcp.T
 			},
 			Required: []string{"resource_id", "provider", "resource_type", "config"},
 		},
-	}, create(storage, providerManager)
+	}, Handler: create(storage, providerManager)}
 }
 
 func create(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
@@ -88,7 +88,6 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			}
 			storage.SaveResourceOperation(ctx, operation)
 		}()
-
 
 		// Create resource using provider manager
 		state, err := providerManager.CreateResource(ctx, args.Provider, args.ResourceType, args.Config)

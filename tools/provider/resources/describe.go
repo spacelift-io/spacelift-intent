@@ -15,8 +15,8 @@ type describeArgs struct {
 	ResourceType string `json:"resource_type"`
 }
 
-func Describe(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Describe(providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("provider-resources-describe"),
 		Description: "Get the schema and documentation for a specific resource type. " +
 			"Essential for Configuration Completion Strategy - use this to identify ALL required " +
@@ -43,7 +43,7 @@ func Describe(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"provider", "resource_type"},
 		},
-	}, describe(providerManager)
+	}, Handler: describe(providerManager)}
 }
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {

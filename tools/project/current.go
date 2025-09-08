@@ -9,7 +9,7 @@ import (
 )
 
 // Current retrieves the current Intent project
-func Current() (mcp.Tool, i.ToolHandler) {
+func Current() i.Tool {
 	tool := mcp.Tool{
 		Name:        string("project-current"),
 		Description: "Get the current Intent project. LOW risk read-only operation for retrieving project configuration. Use this to understand project setup, check variable values, and analyze configuration before executing resource management tools.",
@@ -25,5 +25,5 @@ func Current() (mcp.Tool, i.ToolHandler) {
 		return mcp.NewToolResultError("Not implemented"), nil
 	}
 
-	return tool, handler
+	return i.Tool{Tool: tool, Handler: handler}
 }

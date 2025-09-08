@@ -16,8 +16,8 @@ type readArgs struct {
 	Config         map[string]any `json:"config"`
 }
 
-func Read(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Read(providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-datasources-read"),
 		Description: "Read data from a data source of any type from any provider. " +
 			"LOW risk read-only operation for querying external data during Discovery Phase. " +
@@ -46,7 +46,7 @@ func Read(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"provider", "data_source_type", "config"},
 		},
-	}, read(providerManager)
+	}, Handler: read(providerManager)}
 }
 
 func read(providerManager types.ProviderManager) i.ToolHandler {

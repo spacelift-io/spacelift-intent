@@ -15,8 +15,8 @@ type describeArgs struct {
 	DataSourceType string `json:"data_source_type"`
 }
 
-func Describe(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Describe(providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("provider-datasources-describe"),
 		Description: "Get the schema and documentation for a specific data source type. " +
 			"Essential for Discovery Phase - use this to understand data source capabilities, " +
@@ -42,7 +42,7 @@ func Describe(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"provider", "data_source_type"},
 		},
-	}, describe(providerManager)
+	}, Handler: describe(providerManager)}
 }
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {

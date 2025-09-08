@@ -16,8 +16,8 @@ type operationsArgs struct {
 	ResourceType *string `json:"resource_type"`
 }
 
-func Operations(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Operations(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-operations"),
 		Description: "List operations performed on resources with optional filtering by resource ID, " +
 			"provider, or resource type. Essential for Discovery Phase - use this to review " +
@@ -47,7 +47,7 @@ func Operations(storage types.Storage) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{},
 		},
-	}, operations(storage)
+	}, Handler: operations(storage)}
 }
 
 func operations(storage types.Storage) i.ToolHandler {

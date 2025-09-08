@@ -17,8 +17,8 @@ type importArgs struct {
 	ResourceType string `json:"resource_type"`
 }
 
-func Import(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-import"),
 		Description: "Import an existing external resource and store in the state. " +
 			"MEDIUM risk operation for bringing existing infrastructure under MCP management. " +
@@ -50,7 +50,7 @@ func Import(storage types.Storage, providerManager types.ProviderManager) (mcp.T
 			},
 			Required: []string{"resource_id", "provider", "resource_type"},
 		},
-	}, _import(storage, providerManager)
+	}, Handler: _import(storage, providerManager)}
 }
 
 func _import(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
@@ -130,7 +130,6 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}
 
 		operation.ProposedState = state
-
 
 		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,

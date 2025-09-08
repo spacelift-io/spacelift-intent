@@ -15,8 +15,8 @@ type getArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Get(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Get(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("state-get"),
 		Description: "Get the stored state for a resource by ID including its dependencies " +
 			"and dependents. Essential for Discovery Phase - use this to understand current " +
@@ -37,7 +37,7 @@ func Get(storage types.Storage) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"resource_id"},
 		},
-	}, get(storage)
+	}, Handler: get(storage)}
 }
 
 func get(storage types.Storage) i.ToolHandler {

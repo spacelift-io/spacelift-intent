@@ -16,8 +16,8 @@ type updateArgs struct {
 	Config     map[string]any `json:"config"`
 }
 
-func Update(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Update(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-update"),
 		Description: "Update an existing OpenTofu resource by ID with a new configuration. " +
 			"MEDIUM risk operation that requires policy evaluation and user approval for " +
@@ -45,7 +45,7 @@ func Update(storage types.Storage, providerManager types.ProviderManager) (mcp.T
 			},
 			Required: []string{"resource_id", "config"},
 		},
-	}, update(storage, providerManager)
+	}, Handler: update(storage, providerManager)}
 }
 
 func update(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {

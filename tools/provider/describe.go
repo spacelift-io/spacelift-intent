@@ -14,8 +14,8 @@ type describeArgs struct {
 	Provider string `json:"provider"`
 }
 
-func Describe(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Describe(providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name:        string("provider-describe"),
 		Description: "Show the provider configuration, supported resources and supported data sources. Use this tool after finding a provider to understand its capabilities before resource creation - essential for discovering available resource types, data sources, and configuration requirements. Critical for the Configuration Phase workflow to validate resource definitions and ensure proper provider argument handling.",
 		Annotations: i.ToolAnnotations("Show the provider config", i.READONLY|i.IDEMPOTENT),
@@ -29,7 +29,7 @@ func Describe(providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"provider"},
 		},
-	}, describe(providerManager)
+	}, Handler: describe(providerManager)}
 }
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {

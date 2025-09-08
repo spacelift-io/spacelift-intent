@@ -10,8 +10,8 @@ import (
 	"spacelift-intent-mcp/types"
 )
 
-func Add(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Add(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-dependencies-add"),
 		Description: `Add a dependency relationship between two resources with optional explanation and field mappings. 
 **LOW risk** operation for establishing resource ordering and dependency chains. 
@@ -75,7 +75,7 @@ ec2-role is a dependency for the instance_profile, and instance_profile is a dep
 			},
 			Required: []string{"from_resource_id", "to_resource_id", "dependency_type"},
 		},
-	}, add(storage)
+	}, Handler: add(storage)}
 }
 
 func add(storage types.Storage) i.ToolHandler {

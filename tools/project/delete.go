@@ -9,7 +9,7 @@ import (
 )
 
 // Delete removes a Intent project
-func Delete() (mcp.Tool, i.ToolHandler) {
+func Delete() i.Tool {
 	tool := mcp.Tool{
 		Name:        string("project-delete"),
 		Description: "Delete a Intent project by ID. HIGH risk DESTRUCTIVE operation that permanently removes project configuration. This will affect future resource management tools usage. Use with caution and ensure the project is no longer needed before deletion.",
@@ -30,5 +30,5 @@ func Delete() (mcp.Tool, i.ToolHandler) {
 		return mcp.NewToolResultError("Not implemented"), nil
 	}
 
-	return tool, handler
+	return i.Tool{Tool: tool, Handler: handler}
 }

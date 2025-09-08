@@ -1,10 +1,7 @@
 package tools
 
 import (
-	"context"
-
-	"github.com/mark3labs/mcp-go/mcp"
-
+	"spacelift-intent-mcp/tools/internal"
 	datasourceLifecycle "spacelift-intent-mcp/tools/lifecycle/datasources"
 	resourceLifecycle "spacelift-intent-mcp/tools/lifecycle/resources"
 	"spacelift-intent-mcp/tools/lifecycle/resources/dependencies"
@@ -15,11 +12,6 @@ import (
 	"spacelift-intent-mcp/tools/state"
 	"spacelift-intent-mcp/types"
 )
-
-// Server interface defines the MCP server
-type Server interface {
-	AddTool(tool mcp.Tool, handler func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error))
-}
 
 // ToolHandlers contains all MCP tool handlers
 type ToolHandlers struct {
@@ -38,97 +30,74 @@ func New(registryClient types.RegistryClient, providerManager types.ProviderMana
 }
 
 // RegisterTools registers all MCP tools with the server
-func (th *ToolHandlers) RegisterTools(s Server) {
+func (th *ToolHandlers) Tools() []internal.Tool {
+	tools := []internal.Tool{}
 	// Register search providers tool
-	tool, handler := provider.Search(th.registryClient)
-	s.AddTool(tool, handler)
+	tools = append(tools, provider.Search(th.registryClient))
 
 	// Register describe provider tool
-	tool, handler = provider.Describe(th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, provider.Describe(th.providerManager))
 
 	// Register describe resource tool
-	tool, handler = resourceSchema.Describe(th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceSchema.Describe(th.providerManager))
 
 	// Register create resource tool
-	tool, handler = resourceLifecycle.Create(th.storage, th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Create(th.storage, th.providerManager))
 
 	// Register update resource tool
-	tool, handler = resourceLifecycle.Update(th.storage, th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Update(th.storage, th.providerManager))
 
 	// Register operations resource tool
-	tool, handler = resourceLifecycle.Operations(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Operations(th.storage))
 
 	// Register describe data source tool
-	tool, handler = datasourceSchema.Describe(th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, datasourceSchema.Describe(th.providerManager))
 
 	// Register read data source tool
-	tool, handler = datasourceLifecycle.Read(th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, datasourceLifecycle.Read(th.providerManager))
 
 	// Register get state tool
-	tool, handler = state.Get(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, state.Get(th.storage))
 
 	// Register list states tool
-	tool, handler = state.List(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, state.List(th.storage))
 
 	// Register delete resource tool
-	tool, handler = resourceLifecycle.Delete(th.storage, th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Delete(th.storage, th.providerManager))
 
 	// Register refresh resource tool
-	tool, handler = resourceLifecycle.Refresh(th.storage, th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Refresh(th.storage, th.providerManager))
 
 	// Register import resource tool
-	tool, handler = resourceLifecycle.Import(th.storage, th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Import(th.storage, th.providerManager))
 
 	// Register resume resource tool
-	tool, handler = resourceLifecycle.Resume(th.storage, th.providerManager)
-	s.AddTool(tool, handler)
+	tools = append(tools, resourceLifecycle.Resume(th.storage, th.providerManager))
 
 	// Register eject resource tool
-	tool, handler = state.Eject(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, state.Eject(th.storage))
 
 	// Register dependency management tools
-	tool, handler = dependencies.Add(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, dependencies.Add(th.storage))
 
-	tool, handler = dependencies.Remove(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, dependencies.Remove(th.storage))
 
-	tool, handler = dependencies.Get(th.storage)
-	s.AddTool(tool, handler)
+	tools = append(tools, dependencies.Get(th.storage))
 
-	tool, handler = state.Timeline(th.storage)
-	s.AddTool(tool, handler)
-
+	tools = append(tools, state.Timeline(th.storage))
 
 	// Register intent project management tools
-	tool, handler = projectTools.Create()
-	s.AddTool(tool, handler)
+	tools = append(tools, projectTools.Create())
 
-	tool, handler = projectTools.Delete()
-	s.AddTool(tool, handler)
+	tools = append(tools, projectTools.Delete())
 
-	tool, handler = projectTools.Describe()
-	s.AddTool(tool, handler)
+	tools = append(tools, projectTools.Describe())
 
-	tool, handler = projectTools.List()
-	s.AddTool(tool, handler)
+	tools = append(tools, projectTools.List())
 
-	tool, handler = projectTools.Current()
-	s.AddTool(tool, handler)
+	tools = append(tools, projectTools.Current())
 
-	tool, handler = projectTools.Use()
-	s.AddTool(tool, handler)
+	tools = append(tools, projectTools.Use())
+
+	return tools
 }

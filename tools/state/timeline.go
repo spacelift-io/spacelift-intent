@@ -10,8 +10,8 @@ import (
 	"spacelift-intent-mcp/types"
 )
 
-func Timeline(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Timeline(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("state-timeline"),
 		Description: "Get state timeline events with filtering and pagination. " +
 			"Essential for Verification Phase - use this to review infrastructure changes, " +
@@ -49,7 +49,7 @@ func Timeline(storage types.Storage) (mcp.Tool, i.ToolHandler) {
 				},
 			},
 		},
-	}, timeline(storage)
+	}, Handler: timeline(storage)}
 }
 
 func timeline(storage types.Storage) i.ToolHandler {

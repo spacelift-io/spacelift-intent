@@ -9,7 +9,7 @@ import (
 )
 
 // List retrieves all available Intent projects
-func List() (mcp.Tool, i.ToolHandler) {
+func List() i.Tool {
 	tool := mcp.Tool{
 		Name:        string("project-list"),
 		Description: "List all available Intent projects. LOW risk read-only operation for discovering projects. Use this to explore available projects, check project names and IDs, and understand project organization before selecting projects to use or manage.",
@@ -24,5 +24,5 @@ func List() (mcp.Tool, i.ToolHandler) {
 		return mcp.NewToolResultError("Not implemented"), nil
 	}
 
-	return tool, handler
+	return i.Tool{Tool: tool, Handler: handler}
 }

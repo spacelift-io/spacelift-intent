@@ -1,6 +1,5 @@
 package types
 
-
 type contextKey string
 
 const (
@@ -86,7 +85,6 @@ type TimelineResponse struct {
 	TotalCount int             `json:"total_count"` // Total events matching query
 	HasMore    bool            `json:"has_more"`    // True if there are more events beyond this page
 }
-
 
 // ResourceOperation represents a single operation on a resource
 type ResourceOperation struct {

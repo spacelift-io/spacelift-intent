@@ -13,8 +13,8 @@ type resumeArgs struct {
 	OperationID string `json:"operation_id"`
 }
 
-func Resume(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Resume(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-resume"),
 		Description: "Resume a suspended operation that was halted due to policy evaluation or other reasons. " +
 			"MEDIUM risk operation that continues the previously suspended resource operation " +
@@ -31,7 +31,7 @@ func Resume(storage types.Storage, providerManager types.ProviderManager) (mcp.T
 			},
 			Required: []string{"operation_id"},
 		},
-	}, resume(storage, providerManager)
+	}, Handler: resume(storage, providerManager)}
 }
 
 func resume(_ types.Storage, _ types.ProviderManager) i.ToolHandler {

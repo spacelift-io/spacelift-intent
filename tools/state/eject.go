@@ -15,8 +15,8 @@ type ejectArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Eject(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Eject(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name:        string("state-eject"),
 		Description: "Remove a resource from the state - stop managing lifecycle without deleting the actual resource. MEDIUM risk operation that removes MCP management while preserving actual infrastructure. Use this to transition resources back to manual management or transfer to different management systems. Critical Safety Protocol: verify no dependents exist before ejection to avoid breaking dependency chains.",
 		Annotations: i.ToolAnnotations("Remove a resource from the state", i.DESTRUCTIVE|i.IDEMPOTENT),
@@ -30,7 +30,7 @@ func Eject(storage types.Storage) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"resource_id"},
 		},
-	}, eject(storage)
+	}, Handler: eject(storage)}
 }
 
 func eject(storage types.Storage) i.ToolHandler {

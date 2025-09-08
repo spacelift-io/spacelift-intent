@@ -10,8 +10,8 @@ import (
 	"spacelift-intent-mcp/types"
 )
 
-func Get(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Get(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name:        string("lifecycle-resources-dependencies-get"),
 		Description: "Get dependency relationships for a resource, showing both what it depends on (dependencies) and what depends on it (dependents). LOW risk operation for understanding resource relationships and dependency chains. Essential for dependency analysis, troubleshooting circular dependencies, and planning changes that might affect related resources.",
 		Annotations: i.ToolAnnotations("Get dependency relationships for a resource", i.READONLY),
@@ -31,7 +31,7 @@ func Get(storage types.Storage) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"resource_id"},
 		},
-	}, get(storage)
+	}, Handler: get(storage)}
 }
 
 type GetDependenciesRequest struct {

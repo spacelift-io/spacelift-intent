@@ -15,8 +15,8 @@ type removeArgs struct {
 	To   string `json:"to_resource_id"`
 }
 
-func Remove(storage types.Storage) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Remove(storage types.Storage) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name:        string("lifecycle-resources-dependencies-remove"),
 		Description: "Explicitly remove a dependency relationship between two resources. MEDIUM risk operation that modifies resource ordering and dependency chains. Use with caution - removing dependencies can affect deployment sequences and potentially cause resource lifecycle issues. Verify impact on dependent resources before removing to maintain infrastructure stability.",
 		Annotations: i.ToolAnnotations("Explicitly remove between two resources", i.DESTRUCTIVE|i.IDEMPOTENT),
@@ -34,7 +34,7 @@ func Remove(storage types.Storage) (mcp.Tool, i.ToolHandler) {
 			},
 			Required: []string{"from_resource_id", "to_resource_id"},
 		},
-	}, remove(storage)
+	}, Handler: remove(storage)}
 }
 
 func remove(storage types.Storage) i.ToolHandler {

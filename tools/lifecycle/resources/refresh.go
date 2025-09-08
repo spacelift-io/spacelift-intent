@@ -16,8 +16,8 @@ type refreshArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Refresh(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Refresh(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-refresh"),
 		Description: "Refresh an existing resource by reading its current state using the provider. " +
 			"Essential for Verification Phase - use this to detect resource drift and ensure " +
@@ -38,7 +38,7 @@ func Refresh(storage types.Storage, providerManager types.ProviderManager) (mcp.
 			},
 			Required: []string{"resource_id"},
 		},
-	}, refresh(storage, providerManager)
+	}, Handler: refresh(storage, providerManager)}
 }
 
 func refresh(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {

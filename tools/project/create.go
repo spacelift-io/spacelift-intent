@@ -9,7 +9,7 @@ import (
 )
 
 // Create creates a new Intent project
-func Create() (mcp.Tool, i.ToolHandler) {
+func Create() i.Tool {
 	tool := mcp.Tool{
 		Name:        string("project-create"),
 		Description: "Create a new reusable project. MEDIUM risk operation that creates persistent intent project. Use this to define reusable environment for resources management.",
@@ -34,5 +34,5 @@ func Create() (mcp.Tool, i.ToolHandler) {
 		return mcp.NewToolResultError("Not implemented"), nil
 	}
 
-	return tool, handler
+	return i.Tool{Tool: tool, Handler: handler}
 }

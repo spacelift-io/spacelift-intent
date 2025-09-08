@@ -72,8 +72,9 @@ func newServer(config *Config) (*Server, error) {
 		server.WithInstructions(instructions.Get()),
 	)
 
-	// Register tools
-	toolHandlers.RegisterTools(s)
+	for _, tool := range toolHandlers.Tools() {
+		s.mcp.AddTool(tool.Tool, tool.Handler)
+	}
 
 	return s, nil
 }

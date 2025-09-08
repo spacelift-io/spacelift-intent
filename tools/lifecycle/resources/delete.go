@@ -15,8 +15,8 @@ type deleteArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Delete(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
-	return mcp.Tool{
+func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-delete"),
 		Description: "Delete an existing resource by its ID and remove it from the state. " +
 			"HIGH RISK destructive operation that requires explicit user approval. " +
@@ -37,7 +37,7 @@ func Delete(storage types.Storage, providerManager types.ProviderManager) (mcp.T
 			},
 			Required: []string{"resource_id"},
 		},
-	}, delete(storage, providerManager)
+	}, Handler: delete(storage, providerManager)}
 }
 
 func delete(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {

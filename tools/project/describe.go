@@ -9,7 +9,7 @@ import (
 )
 
 // Describe retrieves a Intent project by ID
-func Describe() (mcp.Tool, i.ToolHandler) {
+func Describe() i.Tool {
 	tool := mcp.Tool{
 		Name:        string("project-describe"),
 		Description: "Describe a Intent project by ID. LOW risk read-only operation for retrieving project configuration. Use this to understand project setup, check variable values, and analyze configuration before executing resource management tools.",
@@ -30,5 +30,5 @@ func Describe() (mcp.Tool, i.ToolHandler) {
 		return mcp.NewToolResultError("Not implemented"), nil
 	}
 
-	return tool, handler
+	return i.Tool{Tool: tool, Handler: handler}
 }
