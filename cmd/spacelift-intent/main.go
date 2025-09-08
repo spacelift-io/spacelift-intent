@@ -15,8 +15,8 @@ import (
 func main() {
 	app := &cli.App{
 		Name:        "spacelift-intent-mcp-standalone",
-		Usage:       "OpenTofu MCP Server (Standalone Mode)",
-		Description: "Standalone mode OpenTofu MCP Server with all functionality in a single binary",
+		Usage:       "Spacelift Intent MCP Server",
+		Description: "Infrastructure management server",
 		Flags:       []cli.Flag{tmpDirFlag, dbDirFlag},
 		Action: func(c *cli.Context) error {
 			tmpDir := c.String(tmpDirFlag.Name)

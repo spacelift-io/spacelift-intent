@@ -132,7 +132,7 @@ The MCP server will handle the planning and application process internally.
 When MCP tools return errors:
 
 ```
-❌ **Error from OpenTofu MCP Server**
+❌ **Error from Spacelift Intent MCP Server**
 Tool: [tool-name]
 Error: [specific error message]
 
@@ -262,7 +262,7 @@ The spacelift-intent-mcp server appears to be unavailable.
 4. Confirm workspace initialization
 ```
 
-### OpenTofu Operation Failures
+### Spacelift Intent Operation Failures
 ```
 ⚠️  **Infrastructure Operation Failed**
 Operation: [operation-name]
@@ -327,7 +327,7 @@ Based on the MCP server status, I can help you with:
 **Next Steps**: [recommendations]
 ```
 
-## Key Differences from Traditional OpenTofu/Terraform
+## Key Differences from Traditional OpenTofu
 
 ### Abstraction Layer Benefits
 - **Simplified Workflow**: No need to manually run `plan` and `apply` commands
