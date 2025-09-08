@@ -20,9 +20,6 @@ RUN go mod download
 # Copy source code
 COPY cmd/standalone cmd/standalone
 COPY instructions instructions
-COPY internal internal
-COPY pkg/standalone pkg/standalone
-COPY policy policy
 COPY proto proto
 COPY provider provider
 COPY registry registry
