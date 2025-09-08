@@ -17,7 +17,7 @@ type importArgs struct {
 	ResourceType string `json:"resource_type"`
 }
 
-func Import(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) (mcp.Tool, i.ToolHandler) {
+func Import(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-import"),
 		Description: "Import an existing external resource and store in the state. " +
@@ -53,7 +53,7 @@ func Import(storage types.Storage, providerManager types.ProviderManager, policy
 	}, _import(storage, providerManager, policyEvaluator)
 }
 
-func _import(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) i.ToolHandler {
+func _import(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args importArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
 		existingState, err := storage.GetState(ctx, args.ResourceID)
@@ -131,21 +131,12 @@ func _import(storage types.Storage, providerManager types.ProviderManager, polic
 
 		operation.ProposedState = state
 
-		// Evaluate policies after import operation (post-operation)
-		if policyEvaluator != nil {
-			err = evaluatePolicies(ctx, policyEvaluator, input, &operation)
-			if err != nil {
-				// Log the error but don't fail the operation
-				fmt.Printf("Policy evaluation warning during import: %v\n", err)
-				err = nil // Don't fail the import if policies have issues
-			}
-		}
 
-		return RespondJSONWithPolicyResult(map[string]any{
+		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
 			"result":      state,
 			"status":      "imported",
 			"message":     "resource successfully imported",
-		}, &operation)
+		})
 	})
 }

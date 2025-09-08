@@ -15,7 +15,7 @@ type deleteArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Delete(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) (mcp.Tool, i.ToolHandler) {
+func Delete(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-delete"),
 		Description: "Delete an existing resource by its ID and remove it from the state. " +
@@ -40,7 +40,7 @@ func Delete(storage types.Storage, providerManager types.ProviderManager, policy
 	}, delete(storage, providerManager, policyEvaluator)
 }
 
-func delete(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) i.ToolHandler {
+func delete(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args deleteArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
@@ -80,14 +80,6 @@ func delete(storage types.Storage, providerManager types.ProviderManager, policy
 			storage.SaveResourceOperation(ctx, operation)
 		}()
 
-		// Evaluate policies before delete operation
-		if policyEvaluator != nil {
-			err = evaluatePolicies(ctx, policyEvaluator, input, &operation)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-		}
-
 		// Delete the resource using the provider manager
 		err = providerManager.DeleteResource(ctx, record.Provider, record.ResourceType, state)
 		if err != nil {
@@ -105,9 +97,9 @@ func delete(storage types.Storage, providerManager types.ProviderManager, policy
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		return RespondJSONWithPolicyResult(map[string]any{
+		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
 			"status":      "deleted",
-		}, &operation)
+		})
 	})
 }

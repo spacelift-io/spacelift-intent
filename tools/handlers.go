@@ -5,11 +5,9 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 
-	"spacelift-intent-mcp/policy"
 	datasourceLifecycle "spacelift-intent-mcp/tools/lifecycle/datasources"
 	resourceLifecycle "spacelift-intent-mcp/tools/lifecycle/resources"
 	"spacelift-intent-mcp/tools/lifecycle/resources/dependencies"
-	policyTools "spacelift-intent-mcp/tools/policy"
 	projectTools "spacelift-intent-mcp/tools/project"
 	"spacelift-intent-mcp/tools/provider"
 	datasourceSchema "spacelift-intent-mcp/tools/provider/datasources"
@@ -28,18 +26,14 @@ type ToolHandlers struct {
 	registryClient  types.RegistryClient
 	providerManager types.ProviderManager
 	storage         types.Storage
-	policyEngine    types.PolicyEngine
-	policyEvaluator types.PolicyEvaluator
 }
 
 // New creates new tool handlers
-func New(registryClient types.RegistryClient, providerManager types.ProviderManager, storage types.Storage, policyEngine types.PolicyEngine) *ToolHandlers {
+func New(registryClient types.RegistryClient, providerManager types.ProviderManager, storage types.Storage) *ToolHandlers {
 	return &ToolHandlers{
 		registryClient:  registryClient,
 		providerManager: providerManager,
 		storage:         storage,
-		policyEngine:    policyEngine,
-		policyEvaluator: policy.NewEvaluator(storage, policyEngine),
 	}
 }
 
@@ -58,11 +52,11 @@ func (th *ToolHandlers) RegisterTools(s Server) {
 	s.AddTool(tool, handler)
 
 	// Register create resource tool
-	tool, handler = resourceLifecycle.Create(th.storage, th.providerManager, th.policyEvaluator)
+	tool, handler = resourceLifecycle.Create(th.storage, th.providerManager, nil)
 	s.AddTool(tool, handler)
 
 	// Register update resource tool
-	tool, handler = resourceLifecycle.Update(th.storage, th.providerManager, th.policyEvaluator)
+	tool, handler = resourceLifecycle.Update(th.storage, th.providerManager, nil)
 	s.AddTool(tool, handler)
 
 	// Register operations resource tool
@@ -86,19 +80,19 @@ func (th *ToolHandlers) RegisterTools(s Server) {
 	s.AddTool(tool, handler)
 
 	// Register delete resource tool
-	tool, handler = resourceLifecycle.Delete(th.storage, th.providerManager, th.policyEvaluator)
+	tool, handler = resourceLifecycle.Delete(th.storage, th.providerManager, nil)
 	s.AddTool(tool, handler)
 
 	// Register refresh resource tool
-	tool, handler = resourceLifecycle.Refresh(th.storage, th.providerManager, th.policyEvaluator)
+	tool, handler = resourceLifecycle.Refresh(th.storage, th.providerManager, nil)
 	s.AddTool(tool, handler)
 
 	// Register import resource tool
-	tool, handler = resourceLifecycle.Import(th.storage, th.providerManager, th.policyEvaluator)
+	tool, handler = resourceLifecycle.Import(th.storage, th.providerManager, nil)
 	s.AddTool(tool, handler)
 
 	// Register resume resource tool
-	tool, handler = resourceLifecycle.Resume(th.storage, th.providerManager, th.policyEvaluator)
+	tool, handler = resourceLifecycle.Resume(th.storage, th.providerManager, nil)
 	s.AddTool(tool, handler)
 
 	// Register eject resource tool
@@ -118,27 +112,6 @@ func (th *ToolHandlers) RegisterTools(s Server) {
 	tool, handler = state.Timeline(th.storage)
 	s.AddTool(tool, handler)
 
-	// Register policy management tools
-	tool, handler = policyTools.Create(th.storage, th.policyEngine)
-	s.AddTool(tool, handler)
-
-	tool, handler = policyTools.List(th.storage)
-	s.AddTool(tool, handler)
-
-	tool, handler = policyTools.Get(th.storage)
-	s.AddTool(tool, handler)
-
-	tool, handler = policyTools.Update(th.storage, th.policyEngine)
-	s.AddTool(tool, handler)
-
-	tool, handler = policyTools.Delete(th.storage)
-	s.AddTool(tool, handler)
-
-	tool, handler = policyTools.DryRun(th.storage, th.policyEngine)
-	s.AddTool(tool, handler)
-
-	tool, handler = policyTools.InputSchema()
-	s.AddTool(tool, handler)
 
 	// Register intent project management tools
 	tool, handler = projectTools.Create()

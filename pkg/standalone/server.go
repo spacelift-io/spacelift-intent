@@ -11,7 +11,6 @@ import (
 
 	"spacelift-intent-mcp/instructions"
 	"spacelift-intent-mcp/internal/filesystem"
-	"spacelift-intent-mcp/policy"
 	"spacelift-intent-mcp/provider"
 	"spacelift-intent-mcp/registry"
 	"spacelift-intent-mcp/storage"
@@ -58,8 +57,7 @@ func NewServer(config *Config) (*Server, error) {
 	// Create services
 	registryClient := registry.NewOpenTofuClient()
 	providerManager := provider.NewManager(config.TmpDir, registryClient)
-	policyEngine := policy.NewEngine()
-	toolHandlers := tools.New(registryClient, providerManager, stateStorage, policyEngine)
+	toolHandlers := tools.New(registryClient, providerManager, stateStorage)
 
 	// Create server
 	s := &Server{

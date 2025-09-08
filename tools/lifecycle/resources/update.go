@@ -16,7 +16,7 @@ type updateArgs struct {
 	Config     map[string]any `json:"config"`
 }
 
-func Update(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) (mcp.Tool, i.ToolHandler) {
+func Update(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-update"),
 		Description: "Update an existing OpenTofu resource by ID with a new configuration. " +
@@ -48,7 +48,7 @@ func Update(storage types.Storage, providerManager types.ProviderManager, policy
 	}, update(storage, providerManager, policyEvaluator)
 }
 
-func update(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) i.ToolHandler {
+func update(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
@@ -88,14 +88,6 @@ func update(storage types.Storage, providerManager types.ProviderManager, policy
 			storage.SaveResourceOperation(ctx, operation)
 		}()
 
-		// Evaluate policies before update operation
-		if policyEvaluator != nil {
-			err = evaluatePolicies(ctx, policyEvaluator, input, &operation)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-		}
-
 		// Update the resource using the provider manager
 		newState, err := providerManager.UpdateResource(ctx, record.Provider, record.ResourceType, currentState, args.Config)
 		if err != nil {
@@ -133,10 +125,10 @@ func update(storage types.Storage, providerManager types.ProviderManager, policy
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		return RespondJSONWithPolicyResult(map[string]any{
+		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
 			"result":      newState,
 			"status":      "updated",
-		}, &operation)
+		})
 	})
 }

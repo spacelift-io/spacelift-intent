@@ -16,7 +16,7 @@ type refreshArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Refresh(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) (mcp.Tool, i.ToolHandler) {
+func Refresh(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-refresh"),
 		Description: "Refresh an existing resource by reading its current state using the provider. " +
@@ -41,7 +41,7 @@ func Refresh(storage types.Storage, providerManager types.ProviderManager, polic
 	}, refresh(storage, providerManager, policyEvaluator)
 }
 
-func refresh(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) i.ToolHandler {
+func refresh(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args refreshArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
@@ -129,23 +129,14 @@ func refresh(storage types.Storage, providerManager types.ProviderManager, polic
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			// Evaluate policies after refresh operation (post-operation)
-			if policyEvaluator != nil {
-				err = evaluatePolicies(ctx, policyEvaluator, input, &operation)
-				if err != nil {
-					// Log the error but don't fail the operation
-					fmt.Printf("Policy evaluation warning during refresh: %v\n", err)
-					err = nil // Don't fail the refresh if policies have issues
-				}
-			}
 		}
 
-		return RespondJSONWithPolicyResult(map[string]any{
+		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
 			"status":      status,
 			"message":     message,
 			"result":      responseState,
-		}, &operation)
+		})
 	},
 	)
 }

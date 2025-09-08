@@ -511,93 +511,13 @@ type ResourceReference struct {
 	ReferencedField string
 }
 
-// Policy operations
-
-// SavePolicy stores or updates a policy
-func (s *sqliteStorage) SavePolicy(ctx context.Context, policy types.Policy) error {
-	query := `
-	INSERT OR REPLACE INTO policies (id, name, description, rego_code, enabled, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, 
-		COALESCE((SELECT created_at FROM policies WHERE id = ?), CURRENT_TIMESTAMP),
-		CURRENT_TIMESTAMP)
-	`
-	_, err := s.db.ExecContext(ctx, query, policy.ID, policy.Name, policy.Description,
-		policy.RegoCode, policy.Enabled, policy.ID)
-	return err
-}
-
-// GetPolicy retrieves a policy by ID
-func (s *sqliteStorage) GetPolicy(ctx context.Context, id string) (*types.Policy, error) {
-	query := `
-	SELECT id, name, description, rego_code, enabled, created_at, updated_at
-	FROM policies
-	WHERE id = ?
-	`
-
-	row := s.db.QueryRowContext(ctx, query, id)
-
-	var policy types.Policy
-	err := row.Scan(&policy.ID, &policy.Name, &policy.Description,
-		&policy.RegoCode, &policy.Enabled, &policy.CreatedAt, &policy.UpdatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, err
-	}
-
-	return &policy, nil
-}
-
-// ListPolicies returns all policies
-func (s *sqliteStorage) ListPolicies(ctx context.Context) ([]types.Policy, error) {
-	query := `
-	SELECT id, name, description, rego_code, enabled, created_at, updated_at
-	FROM policies
-	ORDER BY name
-	`
-
-	rows, err := s.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var policies []types.Policy
-	for rows.Next() {
-		var policy types.Policy
-		err := rows.Scan(&policy.ID, &policy.Name, &policy.Description,
-			&policy.RegoCode, &policy.Enabled, &policy.CreatedAt, &policy.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-		policies = append(policies, policy)
-	}
-
-	return policies, rows.Err()
-}
-
-// DeletePolicy removes a policy by ID
-func (s *sqliteStorage) DeletePolicy(ctx context.Context, id string) error {
-	query := `DELETE FROM policies WHERE id = ?`
-	_, err := s.db.ExecContext(ctx, query, id)
-	return err
-}
 
 func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation types.ResourceOperation) error {
 	query := `
-	INSERT INTO operations (id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, allow, deny, failed)
-	VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+	INSERT INTO operations (id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed)
+	VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
 	`
 
-	allowJSON, err := json.Marshal(operation.Allow)
-	if err != nil {
-		return fmt.Errorf("failed to serialize allow policies: %w", err)
-	}
-	denyJSON, err := json.Marshal(operation.Deny)
-	if err != nil {
-		return fmt.Errorf("failed to serialize deny policies: %w", err)
-	}
 	currentState, err := json.Marshal(operation.CurrentState)
 	if err != nil {
 		return fmt.Errorf("failed to serialize current state: %w", err)
@@ -620,8 +540,6 @@ func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation typ
 		operation.Operation,
 		string(currentState),
 		string(proposedState),
-		string(allowJSON),
-		string(denyJSON),
 		failed,
 	)
 	return err
@@ -629,7 +547,7 @@ func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation typ
 
 func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.ResourceOperationsArgs) ([]types.ResourceOperation, error) {
 	query := `
-	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, allow, deny, failed
+	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed
 	FROM operations 
 	WHERE 1=1
 	`
@@ -657,7 +575,6 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 	var operations []types.ResourceOperation
 	for rows.Next() {
 		var operation types.ResourceOperation
-		var allowJSON, denyJSON string
 		var currentStateJSON, proposedStateJSON string
 		var failed sql.NullString
 
@@ -669,18 +586,9 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 			&currentStateJSON,
 			&proposedStateJSON,
 			&operation.CreatedAt,
-			&allowJSON,
-			&denyJSON,
 			&failed)
 		if err != nil {
 			return nil, err
-		}
-
-		if err = json.Unmarshal([]byte(allowJSON), &operation.Allow); err != nil {
-			return nil, fmt.Errorf("failed to deserialize allow policies: %w", err)
-		}
-		if err = json.Unmarshal([]byte(denyJSON), &operation.Deny); err != nil {
-			return nil, fmt.Errorf("failed to deserialize deny policies: %w", err)
 		}
 		if err = json.Unmarshal([]byte(currentStateJSON), &operation.CurrentState); err != nil {
 			return nil, fmt.Errorf("failed to deserialize current state: %w", err)
@@ -701,7 +609,7 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 
 func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID string) (*types.ResourceOperation, error) {
 	query := `
-	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, allow, deny, failed
+	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed
 	FROM operations 
 	WHERE resource_id = ?
 	ORDER BY created_at DESC
@@ -711,7 +619,6 @@ func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID str
 	row := s.db.QueryRowContext(ctx, query, resourceID)
 
 	var operation types.ResourceOperation
-	var allowJSON, denyJSON string
 	var currentStateJSON, proposedStateJSON string
 	var failed sql.NullString
 
@@ -723,21 +630,12 @@ func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID str
 		&currentStateJSON,
 		&proposedStateJSON,
 		&operation.CreatedAt,
-		&allowJSON,
-		&denyJSON,
 		&failed)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
-	}
-
-	if err = json.Unmarshal([]byte(allowJSON), &operation.Allow); err != nil {
-		return nil, fmt.Errorf("failed to deserialize allow policies: %w", err)
-	}
-	if err = json.Unmarshal([]byte(denyJSON), &operation.Deny); err != nil {
-		return nil, fmt.Errorf("failed to deserialize deny policies: %w", err)
 	}
 	if err = json.Unmarshal([]byte(currentStateJSON), &operation.CurrentState); err != nil {
 		return nil, fmt.Errorf("failed to deserialize current state: %w", err)

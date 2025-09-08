@@ -18,7 +18,7 @@ type createArgs struct {
 	Config       map[string]any `json:"config"`
 }
 
-func Create(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) (mcp.Tool, i.ToolHandler) {
+func Create(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-create"),
 		Description: "Create a new managed resource of any type from any provider with required ID, " +
@@ -59,7 +59,7 @@ func Create(storage types.Storage, providerManager types.ProviderManager, policy
 	}, create(storage, providerManager, policyEvaluator)
 }
 
-func create(storage types.Storage, providerManager types.ProviderManager, policyEvaluator types.PolicyEvaluator) i.ToolHandler {
+func create(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args createArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
 		existingState, err := storage.GetState(ctx, args.ResourceID)
@@ -89,13 +89,6 @@ func create(storage types.Storage, providerManager types.ProviderManager, policy
 			storage.SaveResourceOperation(ctx, operation)
 		}()
 
-		// Evaluate policies before create operation
-		if policyEvaluator != nil {
-			err = evaluatePolicies(ctx, policyEvaluator, input, &operation)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-		}
 
 		// Create resource using provider manager
 		state, err := providerManager.CreateResource(ctx, args.Provider, args.ResourceType, args.Config)
@@ -142,10 +135,10 @@ func create(storage types.Storage, providerManager types.ProviderManager, policy
 
 		operation.Failed = nil
 
-		return RespondJSONWithPolicyResult(map[string]any{
+		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
 			"result":      state,
 			"status":      "created",
-		}, &operation)
+		})
 	})
 }

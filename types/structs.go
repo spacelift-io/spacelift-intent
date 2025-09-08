@@ -1,6 +1,5 @@
 package types
 
-import "strings"
 
 type contextKey string
 
@@ -88,46 +87,6 @@ type TimelineResponse struct {
 	HasMore    bool            `json:"has_more"`    // True if there are more events beyond this page
 }
 
-// Policy represents a stored OPA/Rego policy
-type Policy struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	RegoCode    string `json:"rego_code"`
-	Enabled     bool   `json:"enabled"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-}
-
-// PolicyResult represents the full result of policy evaluation
-type PolicyResult struct {
-	Deny  []string `json:"deny"`
-	Allow []string `json:"allow"`
-}
-
-// IsAllowed checks if the operation is allowed by any policy
-func (r *PolicyResult) IsAllowed() (bool, string) {
-	return len(r.Allow) > 0 && len(r.Deny) == 0, strings.Join(r.Allow, ", ")
-}
-
-// IsDenied checks if the operation is denied by any policy
-func (r *PolicyResult) IsDenied() (bool, string) {
-	if len(r.Deny) > 0 {
-		return true, strings.Join(r.Deny, ", ")
-	}
-
-	// No direct decision, no allow, no deny.
-	// It's gonna be stuck, so we deny it by default.
-	if len(r.Allow) == 0 {
-		return true, "no policies allow this operation"
-	}
-	return false, ""
-}
-
-// PolicyInput represents the input data structure for policy evaluation
-type PolicyInput struct {
-	Resource ResourceOperationInput `json:"resource"`
-}
 
 // ResourceOperation represents a single operation on a resource
 type ResourceOperation struct {
@@ -149,8 +108,7 @@ type ResourceOperationInput struct {
 }
 
 type ResourceOperationResult struct {
-	PolicyResult         // Embedded PolicyResult
-	Failed       *string `json:"failed,omitempty"` // Error message if operation failed
+	Failed *string `json:"failed,omitempty"` // Error message if operation failed
 }
 
 type ResourceOperationsArgs struct {

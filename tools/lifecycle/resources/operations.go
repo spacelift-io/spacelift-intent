@@ -76,18 +76,6 @@ func operations(storage types.Storage) i.ToolHandler {
 			} else {
 				output += "  - SUCCEEDED\n"
 			}
-			if len(op.Allow) > 0 {
-				output += "  - Allow:\n"
-				for _, allow := range op.Allow {
-					output += "    - " + allow + "\n"
-				}
-			}
-			if len(op.Deny) > 0 {
-				output += "  - Deny:\n"
-				for _, deny := range op.Deny {
-					output += "    - " + deny + "\n"
-				}
-			}
 
 			output += "\n"
 		}

@@ -54,11 +54,6 @@ type Storage interface {
 	// Timeline operations
 	GetTimeline(ctx context.Context, query TimelineQuery) (*TimelineResponse, error)
 
-	// Policy operations
-	SavePolicy(ctx context.Context, policy Policy) error
-	GetPolicy(ctx context.Context, id string) (*Policy, error)
-	ListPolicies(ctx context.Context) ([]Policy, error)
-	DeletePolicy(ctx context.Context, id string) error
 
 	SaveResourceOperation(ctx context.Context, operation ResourceOperation) error
 	ListResourceOperations(ctx context.Context, args ResourceOperationsArgs) ([]ResourceOperation, error)
@@ -67,13 +62,3 @@ type Storage interface {
 	Close() error
 }
 
-// PolicyEngine interface defines policy evaluation operations
-type PolicyEngine interface {
-	EvaluatePolicies(ctx context.Context, policies []Policy, input PolicyInput) (PolicyResult, error)
-	ValidatePolicy(ctx context.Context, regoCode string) error
-}
-
-// PolicyEvaluator interface defines policy coordination for resource operations
-type PolicyEvaluator interface {
-	Evaluate(ctx context.Context, input PolicyInput) (*PolicyResult, error)
-}
