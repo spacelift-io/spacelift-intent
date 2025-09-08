@@ -54,11 +54,9 @@ type Storage interface {
 	// Timeline operations
 	GetTimeline(ctx context.Context, query TimelineQuery) (*TimelineResponse, error)
 
-
 	SaveResourceOperation(ctx context.Context, operation ResourceOperation) error
 	ListResourceOperations(ctx context.Context, args ResourceOperationsArgs) ([]ResourceOperation, error)
 	GetResourceOperation(ctx context.Context, resourceID string) (*ResourceOperation, error)
 
 	Close() error
 }
-

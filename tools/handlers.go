@@ -5,7 +5,6 @@ import (
 	datasourceLifecycle "spacelift-intent-mcp/tools/lifecycle/datasources"
 	resourceLifecycle "spacelift-intent-mcp/tools/lifecycle/resources"
 	"spacelift-intent-mcp/tools/lifecycle/resources/dependencies"
-	projectTools "spacelift-intent-mcp/tools/project"
 	"spacelift-intent-mcp/tools/provider"
 	datasourceSchema "spacelift-intent-mcp/tools/provider/datasources"
 	resourceSchema "spacelift-intent-mcp/tools/provider/resources"
@@ -85,19 +84,6 @@ func (th *ToolHandlers) Tools() []internal.Tool {
 	tools = append(tools, dependencies.Get(th.storage))
 
 	tools = append(tools, state.Timeline(th.storage))
-
-	// Register intent project management tools
-	tools = append(tools, projectTools.Create())
-
-	tools = append(tools, projectTools.Delete())
-
-	tools = append(tools, projectTools.Describe())
-
-	tools = append(tools, projectTools.List())
-
-	tools = append(tools, projectTools.Current())
-
-	tools = append(tools, projectTools.Use())
 
 	return tools
 }

@@ -22,7 +22,6 @@ func newResourceOperation(input types.ResourceOperationInput) (types.ResourceOpe
 	}, nil
 }
 
-
 // RespondJSON returns a JSON response
 func RespondJSON(response map[string]any) (*mcp.CallToolResult, error) {
 	result, err := json.Marshal(response)
