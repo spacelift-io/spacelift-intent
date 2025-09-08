@@ -10,7 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"spacelift-intent/types"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 const (

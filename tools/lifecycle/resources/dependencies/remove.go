@@ -6,8 +6,8 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 
-	i "spacelift-intent/tools/internal"
-	"spacelift-intent/types"
+	i "github.com/spacelift-io/spacelift-intent/tools/internal"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 type removeArgs struct {

@@ -1,15 +1,15 @@
 package tools
 
 import (
-	"spacelift-intent/tools/internal"
-	datasourceLifecycle "spacelift-intent/tools/lifecycle/datasources"
-	resourceLifecycle "spacelift-intent/tools/lifecycle/resources"
-	"spacelift-intent/tools/lifecycle/resources/dependencies"
-	"spacelift-intent/tools/provider"
-	datasourceSchema "spacelift-intent/tools/provider/datasources"
-	resourceSchema "spacelift-intent/tools/provider/resources"
-	"spacelift-intent/tools/state"
-	"spacelift-intent/types"
+	"github.com/spacelift-io/spacelift-intent/tools/internal"
+	datasourceLifecycle "github.com/spacelift-io/spacelift-intent/tools/lifecycle/datasources"
+	resourceLifecycle "github.com/spacelift-io/spacelift-intent/tools/lifecycle/resources"
+	"github.com/spacelift-io/spacelift-intent/tools/lifecycle/resources/dependencies"
+	"github.com/spacelift-io/spacelift-intent/tools/provider"
+	datasourceSchema "github.com/spacelift-io/spacelift-intent/tools/provider/datasources"
+	resourceSchema "github.com/spacelift-io/spacelift-intent/tools/provider/resources"
+	"github.com/spacelift-io/spacelift-intent/tools/state"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 // ToolHandlers contains all MCP tool handlers

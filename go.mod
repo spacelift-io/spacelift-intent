@@ -1,4 +1,4 @@
-module spacelift-intent
+module github.com/spacelift-io/spacelift-intent
 
 go 1.23.8
 

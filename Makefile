@@ -1,6 +1,6 @@
 # Project Spacelift Intent MCP - Build Configuration
 
-.PHONY: all build build-standalone clean test lint
+.PHONY: all build clean test lint
 
 # Build output directory
 BUILD_DIR := bin
@@ -12,11 +12,7 @@ GO_BUILD_FLAGS := -ldflags="-s -w" -trimpath
 all: build
 
 # Build all binaries
-build: build-standalone
-
-# Build standalone mode binary
-build-standalone:
-	@echo "Building standalone server..."
+build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(GO_BUILD_FLAGS) -o $(BUILD_DIR)/spacelift-intent ./cmd/spacelift-intent
 
@@ -45,8 +41,8 @@ fmt:
 
 
 # Run standalone server
-run-standalone:
-	./$(BUILD_DIR)/spacelift-intent --server-type=http --port=11995
+run:
+	./$(BUILD_DIR)/spacelift-intent
 
 # Display help
 help:
@@ -54,17 +50,15 @@ help:
 	@echo ""
 	@echo "Build targets:"
 	@echo "  all                    - Build all binaries"
-	@echo "  build                  - Build standalone binary"
-	@echo "  build-standalone       - Build standalone server"
+	@echo "  build                  - Build binary"
 	@echo ""
 	@echo "Test targets:"
 	@echo "  test                   - Run tests"
-	@echo "  test-validation        - Test standalone mode validation"
 	@echo "  lint                   - Run linter"
 	@echo "  fmt                    - Format code"
 	@echo ""
 	@echo "Run targets:"
-	@echo "  run-standalone         - Run standalone server"
+	@echo "  run         - Run MCP server"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean                  - Clean build artifacts"

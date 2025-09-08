@@ -1,4 +1,4 @@
-# Dockerignore for Spacelift-Intent MCP
+# Dockerignore for github.com/spacelift-io/spacelift-intent MCP
 # Excludes files that don't need to be in the Docker build context
 
 # Build artifacts

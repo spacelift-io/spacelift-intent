@@ -9,12 +9,12 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"spacelift-intent/instructions"
-	"spacelift-intent/provider"
-	"spacelift-intent/registry"
-	"spacelift-intent/storage"
-	"spacelift-intent/tools"
-	"spacelift-intent/types"
+	"github.com/spacelift-io/spacelift-intent/instructions"
+	"github.com/spacelift-io/spacelift-intent/provider"
+	"github.com/spacelift-io/spacelift-intent/registry"
+	"github.com/spacelift-io/spacelift-intent/storage"
+	"github.com/spacelift-io/spacelift-intent/tools"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 // Server implements the StandaloneServer interface
