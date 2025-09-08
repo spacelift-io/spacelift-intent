@@ -1,0 +1,99 @@
+# Copyright 2025 Spacelift, Inc. and contributors
+# SPDX-License-Identifier: Apache-2.0
+
+version: 2
+
+builds:
+  - id: spacelift-intent
+    main: ./cmd/spacelift-intent
+    binary: spacelift-intent
+    env:
+      - CGO_ENABLED=0
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    flags: [-trimpath, -v]
+    goos: [windows, linux, darwin]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: default
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+
+dockers:
+  - use: buildx
+    goarch: amd64
+    build_flag_templates:
+     - "--platform=linux/amd64"
+     - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+     - "--label=org.opencontainers.image.vendor=Spacelift"
+     - "--label=org.opencontainers.image.description=Spacelift Intent MCP Server version {{ .Version }}"
+     - "--label=org.opencontainers.image.url=https://github.com/spacelift-io/spacelift-intent"
+     - "--label=org.opencontainers.image.documentation=https://github.com/spacelift-io/spacelift-intent/blob/main/README.md"
+     - "--label=org.opencontainers.image.source=https://github.com/spacelift-io/spacelift-intent"
+     - "--label=org.opencontainers.image.version={{ .Version }}"
+     - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+     - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates: ["ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}-amd64"]
+
+  - use: buildx
+    goarch: arm64
+    build_flag_templates:
+     - "--platform=linux/arm64"
+     - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+     - "--label=org.opencontainers.image.vendor=Spacelift"
+     - "--label=org.opencontainers.image.description=Spacelift Intent MCP Server version {{ .Version }}"
+     - "--label=org.opencontainers.image.url=https://github.com/spacelift-io/spacelift-intent"
+     - "--label=org.opencontainers.image.documentation=https://github.com/spacelift-io/spacelift-intent/blob/main/README.md"
+     - "--label=org.opencontainers.image.source=https://github.com/spacelift-io/spacelift-intent"
+     - "--label=org.opencontainers.image.version={{ .Version }}"
+     - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+     - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates: ["ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}-arm64"]
+
+docker_manifests:
+  - name_template: ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}
+    image_templates:
+    - ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}-amd64
+    - ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}-arm64
+
+  - name_template: ghcr.io/spacelift-io/spacelift-intent:latest
+    image_templates:
+    - ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}-amd64
+    - ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}-arm64
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
+  algorithm: sha256
+
+changelog:
+  use: github-native
+
+brews:
+  - name: "{{ .ProjectName }}"
+    repository:
+      owner: "spacelift-io"
+      name: "homebrew-spacelift"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/spacelift-io/spacelift-intent
+    description: "Spacelift Intent MCP Server"
+    license: "Apache-2.0"
+
+release:
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Spacelift Intent MCP Server {{ .Version }}
+
+    Release artifacts for all supported platforms.
+
+    ### Docker images
+    The following multi-arch (amd64 and arm64) Docker images have been published:
+
+    - `ghcr.io/spacelift-io/spacelift-intent:latest`
+    - `ghcr.io/spacelift-io/spacelift-intent:{{ .Version }}`
+
+  footer: |
+    **Full Changelog**: https://github.com/spacelift-io/spacelift-intent/compare/{{ .PreviousTag }}...{{ .Tag }}

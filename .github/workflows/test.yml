@@ -1,0 +1,40 @@
+# Copyright 2025 Spacelift, Inc. and contributors
+# SPDX-License-Identifier: Apache-2.0
+
+name: 🧪 Test
+
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v5
+
+      - name: Mark source directory as safe.
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Display coverage
+        run: go tool cover -func=coverage.out
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.out

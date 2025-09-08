@@ -1,0 +1,70 @@
+# Dockerignore for github.com/spacelift-io/spacelift-intent MCP
+# Excludes files that don't need to be in the Docker build context
+
+# Build artifacts
+bin/
+*.o
+*.a
+*.so
+
+# Go test files
+*_test.go
+vendor/
+
+# Development files
+.git/
+.gitignore
+README.md
+*.md
+docs/
+design/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker files (don't copy into build context unnecessarily)
+docker/data/
+docker/logs/
+docker/executor-data/
+docker/*.conf
+
+# Development configurations
+.env
+.env.local
+.env.development
+
+# Test data
+testdata/
+test/
+
+# Coverage reports
+coverage.out
+*.cover
+
+# Dependency directories
+node_modules/
+
+# Backup files
+*.bak
+*.backup
+
+# Local development scripts
+scripts/dev/
+local/
