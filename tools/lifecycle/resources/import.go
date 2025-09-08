@@ -17,7 +17,7 @@ type importArgs struct {
 	ResourceType string `json:"resource_type"`
 }
 
-func Import(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
+func Import(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-import"),
 		Description: "Import an existing external resource and store in the state. " +
@@ -50,10 +50,10 @@ func Import(storage types.Storage, providerManager types.ProviderManager, policy
 			},
 			Required: []string{"resource_id", "provider", "resource_type"},
 		},
-	}, _import(storage, providerManager, policyEvaluator)
+	}, _import(storage, providerManager)
 }
 
-func _import(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
+func _import(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args importArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
 		existingState, err := storage.GetState(ctx, args.ResourceID)

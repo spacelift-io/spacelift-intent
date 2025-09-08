@@ -16,7 +16,7 @@ type refreshArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Refresh(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
+func Refresh(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-refresh"),
 		Description: "Refresh an existing resource by reading its current state using the provider. " +
@@ -38,10 +38,10 @@ func Refresh(storage types.Storage, providerManager types.ProviderManager, polic
 			},
 			Required: []string{"resource_id"},
 		},
-	}, refresh(storage, providerManager, policyEvaluator)
+	}, refresh(storage, providerManager)
 }
 
-func refresh(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
+func refresh(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args refreshArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)

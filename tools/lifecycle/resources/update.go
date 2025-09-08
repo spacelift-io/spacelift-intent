@@ -16,7 +16,7 @@ type updateArgs struct {
 	Config     map[string]any `json:"config"`
 }
 
-func Update(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
+func Update(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-update"),
 		Description: "Update an existing OpenTofu resource by ID with a new configuration. " +
@@ -45,10 +45,10 @@ func Update(storage types.Storage, providerManager types.ProviderManager, policy
 			},
 			Required: []string{"resource_id", "config"},
 		},
-	}, update(storage, providerManager, policyEvaluator)
+	}, update(storage, providerManager)
 }
 
-func update(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
+func update(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)

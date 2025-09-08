@@ -52,11 +52,11 @@ func (th *ToolHandlers) RegisterTools(s Server) {
 	s.AddTool(tool, handler)
 
 	// Register create resource tool
-	tool, handler = resourceLifecycle.Create(th.storage, th.providerManager, nil)
+	tool, handler = resourceLifecycle.Create(th.storage, th.providerManager)
 	s.AddTool(tool, handler)
 
 	// Register update resource tool
-	tool, handler = resourceLifecycle.Update(th.storage, th.providerManager, nil)
+	tool, handler = resourceLifecycle.Update(th.storage, th.providerManager)
 	s.AddTool(tool, handler)
 
 	// Register operations resource tool
@@ -80,19 +80,19 @@ func (th *ToolHandlers) RegisterTools(s Server) {
 	s.AddTool(tool, handler)
 
 	// Register delete resource tool
-	tool, handler = resourceLifecycle.Delete(th.storage, th.providerManager, nil)
+	tool, handler = resourceLifecycle.Delete(th.storage, th.providerManager)
 	s.AddTool(tool, handler)
 
 	// Register refresh resource tool
-	tool, handler = resourceLifecycle.Refresh(th.storage, th.providerManager, nil)
+	tool, handler = resourceLifecycle.Refresh(th.storage, th.providerManager)
 	s.AddTool(tool, handler)
 
 	// Register import resource tool
-	tool, handler = resourceLifecycle.Import(th.storage, th.providerManager, nil)
+	tool, handler = resourceLifecycle.Import(th.storage, th.providerManager)
 	s.AddTool(tool, handler)
 
 	// Register resume resource tool
-	tool, handler = resourceLifecycle.Resume(th.storage, th.providerManager, nil)
+	tool, handler = resourceLifecycle.Resume(th.storage, th.providerManager)
 	s.AddTool(tool, handler)
 
 	// Register eject resource tool

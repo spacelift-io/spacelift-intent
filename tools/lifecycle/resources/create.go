@@ -18,7 +18,7 @@ type createArgs struct {
 	Config       map[string]any `json:"config"`
 }
 
-func Create(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) (mcp.Tool, i.ToolHandler) {
+func Create(storage types.Storage, providerManager types.ProviderManager) (mcp.Tool, i.ToolHandler) {
 	return mcp.Tool{
 		Name: string("lifecycle-resources-create"),
 		Description: "Create a new managed resource of any type from any provider with required ID, " +
@@ -56,10 +56,10 @@ func Create(storage types.Storage, providerManager types.ProviderManager, policy
 			},
 			Required: []string{"resource_id", "provider", "resource_type", "config"},
 		},
-	}, create(storage, providerManager, policyEvaluator)
+	}, create(storage, providerManager)
 }
 
-func create(storage types.Storage, providerManager types.ProviderManager, policyEvaluator interface{}) i.ToolHandler {
+func create(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args createArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
 		existingState, err := storage.GetState(ctx, args.ResourceID)

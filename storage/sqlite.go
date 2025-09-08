@@ -93,42 +93,6 @@ func (s *sqliteStorage) createTables() error {
 		return err
 	}
 
-	// Add policy tables
-	policySchema := `
-	CREATE TABLE IF NOT EXISTS policies (
-		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL UNIQUE,
-		description TEXT DEFAULT '',
-		rego_code TEXT NOT NULL,
-		enabled BOOLEAN DEFAULT TRUE,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-	
-	CREATE TABLE IF NOT EXISTS resource_policy_violations (
-		id TEXT PRIMARY KEY,
-		resource_id TEXT NOT NULL,
-		policy_id TEXT NOT NULL,
-		policy_name TEXT NOT NULL,
-		violation_type TEXT NOT NULL,
-		message TEXT NOT NULL,
-		path TEXT DEFAULT '',
-		detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		resolved BOOLEAN DEFAULT FALSE,
-		resolved_at DATETIME
-	);
-	
-	CREATE INDEX IF NOT EXISTS idx_policies_enabled ON policies(enabled);
-	CREATE INDEX IF NOT EXISTS idx_policy_violations_resource ON resource_policy_violations(resource_id);
-	CREATE INDEX IF NOT EXISTS idx_policy_violations_policy ON resource_policy_violations(policy_id);
-	CREATE INDEX IF NOT EXISTS idx_policy_violations_resolved ON resource_policy_violations(resolved);
-	`
-
-	_, err = s.db.Exec(policySchema)
-	if err != nil {
-		return err
-	}
-
 	operationsSchema := `
 	CREATE TABLE IF NOT EXISTS operations (
 		id TEXT PRIMARY KEY,
@@ -510,7 +474,6 @@ type ResourceReference struct {
 	FieldPath       string
 	ReferencedField string
 }
-
 
 func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation types.ResourceOperation) error {
 	query := `
