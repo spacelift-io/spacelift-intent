@@ -1,0 +1,160 @@
+package types
+
+import "strings"
+
+type contextKey string
+
+const (
+	OperationContextKey contextKey = "operation"
+	ChangedByContextKey contextKey = "changed_by"
+)
+
+// DownloadInfo contains provider download information
+type DownloadInfo struct {
+	DownloadURL string
+	Shasum      string
+	Version     string
+}
+
+// TypeDescription contains provider type information
+type TypeDescription struct {
+	ProviderName string         `json:"provider"`
+	Type         string         `json:"type"`
+	Description  string         `json:"description"`
+	Properties   map[string]any `json:"properties"`
+	Required     []string       `json:"required"`
+}
+
+// ProviderSearchResult represents a provider search result
+type ProviderSearchResult struct {
+	ID          string  `json:"id"`
+	Type        string  `json:"type"`
+	Addr        string  `json:"addr"`
+	Version     string  `json:"version"`
+	Title       string  `json:"title"`
+	Description string  `json:"description"`
+	Popularity  float64 `json:"popularity"`
+}
+
+// StateRecord represents a stored resource state
+type StateRecord struct {
+	ResourceID   string `json:"resource_id"`
+	Provider     string `json:"provider"`
+	Version      string `json:"version"`
+	ResourceType string `json:"resource_type"`
+	State        string `json:"state"`
+	CreatedAt    string `json:"created_at"`
+}
+
+// FieldMapping represents which fields impact which in a dependency
+type FieldMapping struct {
+	SourceField string `json:"source_field"` // Field in the dependent resource
+	TargetField string `json:"target_field"` // Field in the dependency target
+	Description string `json:"description"`  // How this field dependency works
+}
+
+// DependencyEdge represents a dependency relationship between resources
+type DependencyEdge struct {
+	FromResourceID string         `json:"from_resource_id"`
+	ToResourceID   string         `json:"to_resource_id"`
+	DependencyType string         `json:"dependency_type"` // "explicit", "implicit", "data_source"
+	Explanation    string         `json:"explanation"`     // Why this dependency exists
+	FieldMappings  []FieldMapping `json:"field_mappings"`  // Which fields impact which
+	CreatedAt      string         `json:"created_at"`
+}
+
+// TimelineEvent represents a single event in the system timeline
+type TimelineEvent struct {
+	ID         string `json:"id"`
+	ResourceID string `json:"resource_id,omitempty"` // Empty for global events
+	Operation  string `json:"operation"`             // "create", "update", "delete", "import", "eject", "refresh"
+	ChangedBy  string `json:"changed_by"`            // Who/what triggered the change
+	CreatedAt  string `json:"created_at"`
+}
+
+// TimelineQuery represents query parameters for timeline requests
+type TimelineQuery struct {
+	ResourceID string `json:"resource_id,omitempty"` // If empty, get global timeline
+	FromTime   string `json:"from_time,omitempty"`   // RFC3339 timestamp
+	ToTime     string `json:"to_time,omitempty"`     // RFC3339 timestamp
+	Limit      int    `json:"limit,omitempty"`       // Max events to return (default: 50)
+	Offset     int    `json:"offset,omitempty"`      // Skip N events (for pagination)
+}
+
+// TimelineResponse represents a paginated timeline response
+type TimelineResponse struct {
+	Events     []TimelineEvent `json:"events"`
+	TotalCount int             `json:"total_count"` // Total events matching query
+	HasMore    bool            `json:"has_more"`    // True if there are more events beyond this page
+}
+
+// Policy represents a stored OPA/Rego policy
+type Policy struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	RegoCode    string `json:"rego_code"`
+	Enabled     bool   `json:"enabled"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+// PolicyResult represents the full result of policy evaluation
+type PolicyResult struct {
+	Deny  []string `json:"deny"`
+	Allow []string `json:"allow"`
+}
+
+// IsAllowed checks if the operation is allowed by any policy
+func (r *PolicyResult) IsAllowed() (bool, string) {
+	return len(r.Allow) > 0 && len(r.Deny) == 0, strings.Join(r.Allow, ", ")
+}
+
+// IsDenied checks if the operation is denied by any policy
+func (r *PolicyResult) IsDenied() (bool, string) {
+	if len(r.Deny) > 0 {
+		return true, strings.Join(r.Deny, ", ")
+	}
+
+	// No direct decision, no allow, no deny.
+	// It's gonna be stuck, so we deny it by default.
+	if len(r.Allow) == 0 {
+		return true, "no policies allow this operation"
+	}
+	return false, ""
+}
+
+// PolicyInput represents the input data structure for policy evaluation
+type PolicyInput struct {
+	Resource ResourceOperationInput `json:"resource"`
+}
+
+// ResourceOperation represents a single operation on a resource
+type ResourceOperation struct {
+	ID        string `json:"id"`
+	CreatedAt string `json:"created_at"`
+
+	ResourceOperationInput  // Input data for the resource operation
+	ResourceOperationResult // Result data for the resource operation
+}
+
+// ResourceOperationInput represents the input data for a resource operation
+type ResourceOperationInput struct {
+	ResourceID    string         `json:"resource_id"`
+	ResourceType  string         `json:"resource_type"`
+	Provider      string         `json:"provider"`
+	Operation     string         `json:"operation"` // "create", "update", "delete", "import", "refresh"
+	CurrentState  map[string]any `json:"current_state,omitempty"`
+	ProposedState map[string]any `json:"proposed_state,omitempty"`
+}
+
+type ResourceOperationResult struct {
+	PolicyResult         // Embedded PolicyResult
+	Failed       *string `json:"failed,omitempty"` // Error message if operation failed
+}
+
+type ResourceOperationsArgs struct {
+	ResourceID   *string `json:"resource_id"`
+	ResourceType *string `json:"resource_type"`
+	Provider     *string `json:"provider"`
+}

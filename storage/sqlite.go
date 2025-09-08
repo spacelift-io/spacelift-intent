@@ -1,0 +1,754 @@
+package storage
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/google/uuid"
+	_ "modernc.org/sqlite"
+
+	"spacelift-intent-mcp/types"
+)
+
+// sqliteStorage implements types.Storage using SQLite
+type sqliteStorage struct {
+	db *sql.DB
+}
+
+// NewSQLiteStorage creates a new SQLite-based storage that implements all storage interfaces
+func NewSQLiteStorage(dbPath string) (*sqliteStorage, error) {
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create database directory: %w", err)
+	}
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	storage := &sqliteStorage{db: db}
+
+	if err := storage.createTables(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create tables: %w", err)
+	}
+
+	return storage, nil
+}
+
+// createTables creates the necessary database tables
+func (s *sqliteStorage) createTables() error {
+	// Enable foreign key constraints
+	if _, err := s.db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+		return fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
+	schema := `
+	CREATE TABLE IF NOT EXISTS state_records (
+		id TEXT PRIMARY KEY,
+		provider TEXT NOT NULL,
+		version TEXT NOT NULL,
+		resource_type TEXT NOT NULL,
+		state TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	
+	CREATE TABLE IF NOT EXISTS dependency_edges (
+		from_resource_id TEXT NOT NULL,
+		to_resource_id TEXT NOT NULL,
+		dependency_type TEXT NOT NULL,
+		explanation TEXT DEFAULT '',
+		field_mappings TEXT DEFAULT '[]',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (from_resource_id, to_resource_id),
+		FOREIGN KEY (from_resource_id) REFERENCES state_records(id) ON DELETE CASCADE,
+		FOREIGN KEY (to_resource_id) REFERENCES state_records(id) ON DELETE CASCADE
+	);
+	
+	CREATE TABLE IF NOT EXISTS timeline_events (
+		id TEXT PRIMARY KEY,
+		resource_id TEXT,
+		operation TEXT NOT NULL,
+		changed_by TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	
+	CREATE INDEX IF NOT EXISTS idx_provider_type ON state_records(provider, resource_type);
+	CREATE INDEX IF NOT EXISTS idx_state_created_at ON state_records(created_at);
+	CREATE INDEX IF NOT EXISTS idx_dependency_from ON dependency_edges(from_resource_id);
+	CREATE INDEX IF NOT EXISTS idx_dependency_to ON dependency_edges(to_resource_id);
+	CREATE INDEX IF NOT EXISTS idx_timeline_resource ON timeline_events(resource_id);
+	CREATE INDEX IF NOT EXISTS idx_timeline_created_at ON timeline_events(created_at);
+	CREATE INDEX IF NOT EXISTS idx_timeline_operation ON timeline_events(operation);
+	`
+
+	_, err := s.db.Exec(schema)
+	if err != nil {
+		return err
+	}
+
+	// Add policy tables
+	policySchema := `
+	CREATE TABLE IF NOT EXISTS policies (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL UNIQUE,
+		description TEXT DEFAULT '',
+		rego_code TEXT NOT NULL,
+		enabled BOOLEAN DEFAULT TRUE,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	
+	CREATE TABLE IF NOT EXISTS resource_policy_violations (
+		id TEXT PRIMARY KEY,
+		resource_id TEXT NOT NULL,
+		policy_id TEXT NOT NULL,
+		policy_name TEXT NOT NULL,
+		violation_type TEXT NOT NULL,
+		message TEXT NOT NULL,
+		path TEXT DEFAULT '',
+		detected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		resolved BOOLEAN DEFAULT FALSE,
+		resolved_at DATETIME
+	);
+	
+	CREATE INDEX IF NOT EXISTS idx_policies_enabled ON policies(enabled);
+	CREATE INDEX IF NOT EXISTS idx_policy_violations_resource ON resource_policy_violations(resource_id);
+	CREATE INDEX IF NOT EXISTS idx_policy_violations_policy ON resource_policy_violations(policy_id);
+	CREATE INDEX IF NOT EXISTS idx_policy_violations_resolved ON resource_policy_violations(resolved);
+	`
+
+	_, err = s.db.Exec(policySchema)
+	if err != nil {
+		return err
+	}
+
+	operationsSchema := `
+	CREATE TABLE IF NOT EXISTS operations (
+		id TEXT PRIMARY KEY,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		allow TEXT DEFAULT '',
+		deny TEXT DEFAULT '',
+		failed TEXT DEFAULT '',
+		resource_id TEXT NOT NULL,
+		resource_type TEXT NOT NULL,
+		provider TEXT NOT NULL,
+		operation TEXT NOT NULL,
+		current_state TEXT DEFAULT '',
+		proposed_state TEXT DEFAULT ''
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_operations_resource ON operations(resource_id);
+	CREATE INDEX IF NOT EXISTS idx_operations_type ON operations(resource_type);
+	CREATE INDEX IF NOT EXISTS idx_operations_provider ON operations(provider);
+	`
+
+	_, err = s.db.Exec(operationsSchema)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SaveState stores a state record and automatically records history if context provided
+func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord) error {
+	// Check if resource already exists for history tracking
+	var currentState map[string]any
+	if operation := ctx.Value(types.OperationContextKey); operation != nil {
+		if existing, err := s.GetState(ctx, record.ResourceID); err == nil && existing != nil {
+			json.Unmarshal([]byte(existing.State), &currentState)
+		}
+	}
+
+	// Save the state
+	query := `
+	INSERT OR REPLACE INTO state_records (id, provider, version, resource_type, state, created_at)
+	VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`
+
+	_, err := s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.Version, record.ResourceType, record.State)
+	if err != nil {
+		return err
+	}
+
+	// Automatically record timeline event if context provided
+	if operation := ctx.Value(types.OperationContextKey); operation != nil {
+		if changedBy := ctx.Value(types.ChangedByContextKey); changedBy != nil {
+			event := types.TimelineEvent{
+				ResourceID: record.ResourceID,
+				Operation:  operation.(string),
+				ChangedBy:  changedBy.(string),
+				CreatedAt:  s.getCurrentTimestamp(),
+			}
+
+			s.addTimelineEvent(ctx, event) // Use internal method to avoid circular calls
+		}
+	}
+
+	return nil
+}
+
+// GetState retrieves a state record by ID
+func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRecord, error) {
+	query := `
+	SELECT id, provider, version, resource_type, state, created_at
+	FROM state_records
+	WHERE id = ?
+	`
+
+	row := s.db.QueryRowContext(ctx, query, id)
+
+	var record types.StateRecord
+	err := row.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &record.State, &record.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &record, nil
+}
+
+// ListStates returns all state records
+func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, error) {
+	query := `
+	SELECT id, provider, version, resource_type, state, created_at
+	FROM state_records
+	ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []types.StateRecord
+	for rows.Next() {
+		var record types.StateRecord
+		err := rows.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &record.State, &record.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+
+	return records, rows.Err()
+}
+
+// UpdateState updates an existing state record
+func (s *sqliteStorage) UpdateState(ctx context.Context, record types.StateRecord) error {
+	// This is essentially the same as SaveState since we use INSERT OR REPLACE
+	return s.SaveState(ctx, record)
+}
+
+// DeleteState removes a state record by ID and automatically records history if context provided
+func (s *sqliteStorage) DeleteState(ctx context.Context, id string) error {
+	// Get existing state for history tracking
+	var currentState map[string]any
+	if operation := ctx.Value(types.OperationContextKey); operation != nil {
+		if existing, err := s.GetState(ctx, id); err == nil && existing != nil {
+			json.Unmarshal([]byte(existing.State), &currentState)
+		}
+	}
+
+	// Delete the state
+	query := `DELETE FROM state_records WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+
+	// Automatically record timeline event if context provided
+	if operation := ctx.Value(types.OperationContextKey); operation != nil {
+		if changedBy := ctx.Value(types.ChangedByContextKey); changedBy != nil {
+			event := types.TimelineEvent{
+				ResourceID: id,
+				Operation:  operation.(string),
+				ChangedBy:  changedBy.(string),
+				CreatedAt:  s.getCurrentTimestamp(),
+			}
+
+			s.addTimelineEvent(ctx, event) // Use internal method to avoid circular calls
+		}
+	}
+
+	return nil
+}
+
+// Close closes the database connection
+func (s *sqliteStorage) Close() error {
+	return s.db.Close()
+}
+
+// AddDependency adds a dependency edge, e.g.
+// instance
+//
+//	↓
+//
+// instance-profile
+//
+//	↓
+//
+// ec2-role
+// ---
+// Dependencies:
+// 1. from_resource_id = instance; to_resource_id = instance_profile
+// 2. from_resource_id = instance_profile; to_resource_id = ec2-role
+// ec2-role is a dependency for the instance_profile, and instance_profile is a dependent for ec2-role
+func (s *sqliteStorage) AddDependency(ctx context.Context, edge types.DependencyEdge) error {
+	// Serialize field mappings to JSON
+	fieldMappingsJSON, err := json.Marshal(edge.FieldMappings)
+	if err != nil {
+		return fmt.Errorf("failed to serialize field mappings: %w", err)
+	}
+
+	query := `
+	INSERT OR REPLACE INTO dependency_edges (from_resource_id, to_resource_id, dependency_type, explanation, field_mappings, created_at)
+	VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`
+	_, err = s.db.ExecContext(ctx, query, edge.FromResourceID, edge.ToResourceID, edge.DependencyType, edge.Explanation, string(fieldMappingsJSON))
+	return err
+}
+
+// RemoveDependency removes a dependency edge
+func (s *sqliteStorage) RemoveDependency(ctx context.Context, fromID, toID string) error {
+	query := `DELETE FROM dependency_edges WHERE from_resource_id = ? AND to_resource_id = ?`
+	_, err := s.db.ExecContext(ctx, query, fromID, toID)
+	return err
+}
+
+// GetDependencies returns all dependencies for a resource, meaning what this resource depends on (what needs to be created before this resource)
+func (s *sqliteStorage) GetDependencies(ctx context.Context, resourceID string) ([]types.DependencyEdge, error) {
+	query := `
+	SELECT from_resource_id, to_resource_id, dependency_type, explanation, field_mappings, created_at
+	FROM dependency_edges
+	WHERE from_resource_id = ?
+	ORDER BY created_at
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var edges []types.DependencyEdge
+	for rows.Next() {
+		var edge types.DependencyEdge
+		var fieldMappingsJSON string
+		err := rows.Scan(&edge.FromResourceID, &edge.ToResourceID, &edge.DependencyType, &edge.Explanation, &fieldMappingsJSON, &edge.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		// Deserialize field mappings from JSON
+		if fieldMappingsJSON != "" {
+			err = json.Unmarshal([]byte(fieldMappingsJSON), &edge.FieldMappings)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize field mappings: %w", err)
+			}
+		}
+
+		edges = append(edges, edge)
+	}
+
+	return edges, rows.Err()
+}
+
+// GetDependents returns all dependents for a resource, meaning what depends on this resource
+func (s *sqliteStorage) GetDependents(ctx context.Context, resourceID string) ([]types.DependencyEdge, error) {
+	query := `
+	SELECT from_resource_id, to_resource_id, dependency_type, explanation, field_mappings, created_at
+	FROM dependency_edges
+	WHERE to_resource_id = ?
+	ORDER BY created_at
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, resourceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var edges []types.DependencyEdge
+	for rows.Next() {
+		var edge types.DependencyEdge
+		var fieldMappingsJSON string
+		err := rows.Scan(&edge.FromResourceID, &edge.ToResourceID, &edge.DependencyType, &edge.Explanation, &fieldMappingsJSON, &edge.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+
+		// Deserialize field mappings from JSON
+		if fieldMappingsJSON != "" {
+			err = json.Unmarshal([]byte(fieldMappingsJSON), &edge.FieldMappings)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize field mappings: %w", err)
+			}
+		}
+
+		edges = append(edges, edge)
+	}
+
+	return edges, rows.Err()
+}
+
+// Timeline operations
+
+// addTimelineEvent is an internal method to record timeline events (used by state operations)
+func (s *sqliteStorage) addTimelineEvent(ctx context.Context, event types.TimelineEvent) error {
+	id, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("failed to generate event ID: %w", err)
+	}
+	event.ID = id.String()
+
+	query := `
+	INSERT INTO timeline_events (id, resource_id, operation, changed_by, created_at)
+	VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+	`
+	_, err = s.db.ExecContext(ctx, query, event.ID, event.ResourceID, event.Operation, event.ChangedBy)
+	return err
+}
+
+// GetTimeline returns timeline events based on query parameters with pagination
+func (s *sqliteStorage) GetTimeline(ctx context.Context, query types.TimelineQuery) (*types.TimelineResponse, error) {
+	// Set defaults
+	if query.Limit <= 0 {
+		query.Limit = 50
+	}
+	if query.Offset < 0 {
+		query.Offset = 0
+	}
+
+	// Build the base query
+	baseQuery := `FROM timeline_events WHERE 1=1`
+	var conditions []string
+	var args []any
+
+	// Add resource filter
+	if query.ResourceID != "" {
+		conditions = append(conditions, "resource_id = ?")
+		args = append(args, query.ResourceID)
+	}
+
+	// Add time range filters
+	if query.FromTime != "" {
+		conditions = append(conditions, "created_at >= ?")
+		args = append(args, query.FromTime)
+	}
+	if query.ToTime != "" {
+		conditions = append(conditions, "created_at <= ?")
+		args = append(args, query.ToTime)
+	}
+
+	// Add conditions to base query
+	for _, condition := range conditions {
+		baseQuery += " AND " + condition
+	}
+
+	// Get total count
+	countQuery := "SELECT COUNT(*) " + baseQuery
+	var totalCount int
+	err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	// Get the events
+	eventsQuery := "SELECT id, resource_id, operation, changed_by, created_at " +
+		baseQuery + " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+
+	args = append(args, query.Limit, query.Offset)
+	rows, err := s.db.QueryContext(ctx, eventsQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query timeline events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []types.TimelineEvent
+	for rows.Next() {
+		var event types.TimelineEvent
+		err := rows.Scan(&event.ID, &event.ResourceID, &event.Operation, &event.ChangedBy, &event.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan timeline event: %w", err)
+		}
+		events = append(events, event)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating timeline events: %w", err)
+	}
+
+	// Determine if there are more events
+	hasMore := query.Offset+len(events) < totalCount
+
+	return &types.TimelineResponse{
+		Events:     events,
+		TotalCount: totalCount,
+		HasMore:    hasMore,
+	}, nil
+}
+
+// getCurrentTimestamp returns the current timestamp in RFC3339 format
+func (s *sqliteStorage) getCurrentTimestamp() string {
+	return time.Now().UTC().Format(time.RFC3339)
+}
+
+// ResourceReference represents a reference found in configuration
+type ResourceReference struct {
+	ResourceID      string
+	FieldPath       string
+	ReferencedField string
+}
+
+// Policy operations
+
+// SavePolicy stores or updates a policy
+func (s *sqliteStorage) SavePolicy(ctx context.Context, policy types.Policy) error {
+	query := `
+	INSERT OR REPLACE INTO policies (id, name, description, rego_code, enabled, created_at, updated_at)
+	VALUES (?, ?, ?, ?, ?, 
+		COALESCE((SELECT created_at FROM policies WHERE id = ?), CURRENT_TIMESTAMP),
+		CURRENT_TIMESTAMP)
+	`
+	_, err := s.db.ExecContext(ctx, query, policy.ID, policy.Name, policy.Description,
+		policy.RegoCode, policy.Enabled, policy.ID)
+	return err
+}
+
+// GetPolicy retrieves a policy by ID
+func (s *sqliteStorage) GetPolicy(ctx context.Context, id string) (*types.Policy, error) {
+	query := `
+	SELECT id, name, description, rego_code, enabled, created_at, updated_at
+	FROM policies
+	WHERE id = ?
+	`
+
+	row := s.db.QueryRowContext(ctx, query, id)
+
+	var policy types.Policy
+	err := row.Scan(&policy.ID, &policy.Name, &policy.Description,
+		&policy.RegoCode, &policy.Enabled, &policy.CreatedAt, &policy.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &policy, nil
+}
+
+// ListPolicies returns all policies
+func (s *sqliteStorage) ListPolicies(ctx context.Context) ([]types.Policy, error) {
+	query := `
+	SELECT id, name, description, rego_code, enabled, created_at, updated_at
+	FROM policies
+	ORDER BY name
+	`
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var policies []types.Policy
+	for rows.Next() {
+		var policy types.Policy
+		err := rows.Scan(&policy.ID, &policy.Name, &policy.Description,
+			&policy.RegoCode, &policy.Enabled, &policy.CreatedAt, &policy.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		policies = append(policies, policy)
+	}
+
+	return policies, rows.Err()
+}
+
+// DeletePolicy removes a policy by ID
+func (s *sqliteStorage) DeletePolicy(ctx context.Context, id string) error {
+	query := `DELETE FROM policies WHERE id = ?`
+	_, err := s.db.ExecContext(ctx, query, id)
+	return err
+}
+
+func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation types.ResourceOperation) error {
+	query := `
+	INSERT INTO operations (id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, allow, deny, failed)
+	VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?)
+	`
+
+	allowJSON, err := json.Marshal(operation.Allow)
+	if err != nil {
+		return fmt.Errorf("failed to serialize allow policies: %w", err)
+	}
+	denyJSON, err := json.Marshal(operation.Deny)
+	if err != nil {
+		return fmt.Errorf("failed to serialize deny policies: %w", err)
+	}
+	currentState, err := json.Marshal(operation.CurrentState)
+	if err != nil {
+		return fmt.Errorf("failed to serialize current state: %w", err)
+	}
+	proposedState, err := json.Marshal(operation.ProposedState)
+	if err != nil {
+		return fmt.Errorf("failed to serialize proposed state: %w", err)
+	}
+	failed := sql.NullString{}
+	if operation.Failed != nil {
+		failed.String = *operation.Failed
+		failed.Valid = true
+	}
+
+	_, err = s.db.ExecContext(ctx, query,
+		operation.ID,
+		operation.ResourceID,
+		operation.ResourceType,
+		operation.Provider,
+		operation.Operation,
+		string(currentState),
+		string(proposedState),
+		string(allowJSON),
+		string(denyJSON),
+		failed,
+	)
+	return err
+}
+
+func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.ResourceOperationsArgs) ([]types.ResourceOperation, error) {
+	query := `
+	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, allow, deny, failed
+	FROM operations 
+	WHERE 1=1
+	`
+	var vars []any
+
+	if args.ResourceID != nil {
+		query += " AND resource_id = ?"
+		vars = append(vars, *args.ResourceID)
+	}
+	if args.ResourceType != nil {
+		query += " AND resource_type = ?"
+		vars = append(vars, *args.ResourceType)
+	}
+	if args.Provider != nil {
+		query += " AND provider = ?"
+		vars = append(vars, *args.Provider)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, vars...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var operations []types.ResourceOperation
+	for rows.Next() {
+		var operation types.ResourceOperation
+		var allowJSON, denyJSON string
+		var currentStateJSON, proposedStateJSON string
+		var failed sql.NullString
+
+		err := rows.Scan(&operation.ID,
+			&operation.ResourceID,
+			&operation.ResourceType,
+			&operation.Provider,
+			&operation.Operation,
+			&currentStateJSON,
+			&proposedStateJSON,
+			&operation.CreatedAt,
+			&allowJSON,
+			&denyJSON,
+			&failed)
+		if err != nil {
+			return nil, err
+		}
+
+		if err = json.Unmarshal([]byte(allowJSON), &operation.Allow); err != nil {
+			return nil, fmt.Errorf("failed to deserialize allow policies: %w", err)
+		}
+		if err = json.Unmarshal([]byte(denyJSON), &operation.Deny); err != nil {
+			return nil, fmt.Errorf("failed to deserialize deny policies: %w", err)
+		}
+		if err = json.Unmarshal([]byte(currentStateJSON), &operation.CurrentState); err != nil {
+			return nil, fmt.Errorf("failed to deserialize current state: %w", err)
+		}
+		if err = json.Unmarshal([]byte(proposedStateJSON), &operation.ProposedState); err != nil {
+			return nil, fmt.Errorf("failed to deserialize proposed state: %w", err)
+		}
+
+		if failed.Valid && failed.String != "" {
+			operation.Failed = &failed.String
+		}
+
+		operations = append(operations, operation)
+	}
+
+	return operations, rows.Err()
+}
+
+func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID string) (*types.ResourceOperation, error) {
+	query := `
+	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, allow, deny, failed
+	FROM operations 
+	WHERE resource_id = ?
+	ORDER BY created_at DESC
+	LIMIT 1
+	`
+
+	row := s.db.QueryRowContext(ctx, query, resourceID)
+
+	var operation types.ResourceOperation
+	var allowJSON, denyJSON string
+	var currentStateJSON, proposedStateJSON string
+	var failed sql.NullString
+
+	err := row.Scan(&operation.ID,
+		&operation.ResourceID,
+		&operation.ResourceType,
+		&operation.Provider,
+		&operation.Operation,
+		&currentStateJSON,
+		&proposedStateJSON,
+		&operation.CreatedAt,
+		&allowJSON,
+		&denyJSON,
+		&failed)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if err = json.Unmarshal([]byte(allowJSON), &operation.Allow); err != nil {
+		return nil, fmt.Errorf("failed to deserialize allow policies: %w", err)
+	}
+	if err = json.Unmarshal([]byte(denyJSON), &operation.Deny); err != nil {
+		return nil, fmt.Errorf("failed to deserialize deny policies: %w", err)
+	}
+	if err = json.Unmarshal([]byte(currentStateJSON), &operation.CurrentState); err != nil {
+		return nil, fmt.Errorf("failed to deserialize current state: %w", err)
+	}
+	if err = json.Unmarshal([]byte(proposedStateJSON), &operation.ProposedState); err != nil {
+		return nil, fmt.Errorf("failed to deserialize proposed state: %w", err)
+	}
+
+	if failed.Valid && failed.String != "" {
+		operation.Failed = &failed.String
+	}
+
+	return &operation, nil
+}
