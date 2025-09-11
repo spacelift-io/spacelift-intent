@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-plugin v1.6.3
-	github.com/mark3labs/mcp-go v0.38.0
+	github.com/mark3labs/mcp-go v0.39.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	google.golang.org/grpc v1.73.0
 	google.golang.org/protobuf v1.36.6
