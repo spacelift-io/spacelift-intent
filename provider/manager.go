@@ -19,8 +19,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "github.com/spacelift-io/spacelift-intent/generated/tfplugin5"
 	"github.com/spacelift-io/spacelift-intent/types"
+
+	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 )
 
 var ErrorBinaryNotFound = fmt.Errorf("provider binary not found")
@@ -61,6 +62,51 @@ func NewManager(tmpDir string, registry types.RegistryClient) types.ProviderMana
 		tmpDir:    tmpDir,
 		registry:  registry,
 	}
+}
+
+func (a *DefaultManager) getSchema(ctx context.Context, providerName string) (*types.ProviderSchema, error) {
+	// Get resources list
+	resources, err := a.ListResources(ctx, providerName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list resources: %w", err)
+	}
+
+	// Get data sources list
+	dataSources, err := a.ListDataSources(ctx, providerName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list data sources: %w", err)
+	}
+
+	schema := &types.ProviderSchema{
+		Resources:   make(map[string]*types.TypeDescription),
+		DataSources: make(map[string]*types.TypeDescription),
+	}
+
+	// Build resource schemas
+	for _, resourceType := range resources {
+		desc, err := a.DescribeResource(ctx, providerName, resourceType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to describe resource %s: %w", resourceType, err)
+		}
+		schema.Resources[resourceType] = desc
+	}
+
+	// Build data source schemas
+	for _, dataSourceType := range dataSources {
+		desc, err := a.DescribeDataSource(ctx, providerName, dataSourceType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to describe data source %s: %w", dataSourceType, err)
+		}
+		schema.DataSources[dataSourceType] = desc
+	}
+
+	// Get provider version
+	version, err := a.GetProviderVersion(ctx, providerName)
+	if err == nil {
+		schema.Version = version
+	}
+
+	return schema, nil
 }
 
 // getProviderInfo returns internal provider info (private helper)
