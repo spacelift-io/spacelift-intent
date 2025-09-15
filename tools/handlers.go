@@ -70,9 +70,6 @@ func (th *ToolHandlers) Tools() []internal.Tool {
 	// Register import resource tool
 	tools = append(tools, resourceLifecycle.Import(th.storage, th.providerManager))
 
-	// Register resume resource tool
-	tools = append(tools, resourceLifecycle.Resume(th.storage, th.providerManager))
-
 	// Register eject resource tool
 	tools = append(tools, state.Eject(th.storage))
 
