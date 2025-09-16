@@ -114,3 +114,11 @@ type ResourceOperationsArgs struct {
 	ResourceType *string `json:"resource_type"`
 	Provider     *string `json:"provider"`
 }
+
+// ProviderSchema represents the schema information for a provider
+type ProviderSchema struct {
+	Provider    *TypeDescription
+	Resources   map[string]*TypeDescription
+	DataSources map[string]*TypeDescription
+	Version     string
+}
