@@ -1,9 +1,11 @@
 package provider
 
 import (
+	"archive/zip"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -47,11 +49,18 @@ func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerName string)
 		return nil
 	}
 
+	// Parse provider name
+	parts := strings.Split(providerName, "/")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid provider name format, expected 'namespace/type'")
+	}
+
 	// Download provider if needed
 	binary, err := a.downloadProvider(ctx, providerName)
 	if err != nil {
 		return fmt.Errorf("failed to download provider %s: %w", providerName, err)
 	}
+	a.binaries[providerName] = binary
 
 	// Start the provider using the opentofu-providers library
 	provider, err := tofuprovider.StartGRPCPlugin(ctx, binary)
@@ -70,12 +79,6 @@ func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerName string)
 		TerraformVersion: "1.6.0",
 	}
 
-	// Call GetSchema here as some providers might get confused if we call ConfigureProvider without calling GetSchema first
-	schema, err := a.getSchema(ctx, providerName)
-	if err != nil {
-		return fmt.Errorf("failed to get provider schema for %s: %w", providerName, err)
-	}
-
 	configResp, err := provider.ConfigureProvider(ctx, configReq)
 	if err != nil {
 		provider.Close()
@@ -88,10 +91,16 @@ func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerName string)
 		return fmt.Errorf("provider configuration failed: %s", a.formatDiagnostics(configResp.Diagnostics()))
 	}
 
-	// Store the provider, binary path
 	a.providers[providerName] = provider
+
+	// Call GetSchema here as some providers might get confused if we call ConfigureProvider without calling GetSchema first
+	schema, err := a.getSchema(ctx, providerName)
+	if err != nil {
+		return fmt.Errorf("failed to get provider schema for %s: %w", providerName, err)
+	}
+
+	// Store the provider, binary path
 	a.schemas[providerName] = schema
-	a.binaries[providerName] = binary
 
 	return nil
 }
@@ -697,14 +706,58 @@ func (a *OpenTofuAdapter) DescribeResource(ctx context.Context, providerName, re
 	return desc, nil
 }
 
-// DescribeDataSource returns detailed information about a data source type - not implemented
+// DescribeDataSource returns detailed information about a data source type
 func (a *OpenTofuAdapter) DescribeDataSource(ctx context.Context, providerName, dataSourceType string) (*types.TypeDescription, error) {
-	return nil, fmt.Errorf("DescribeDataSource not implemented")
+	// Ensure provider is loaded
+	if err := a.LoadProvider(ctx, providerName); err != nil {
+		return nil, err
+	}
+
+	// Get cached schema
+	schema, err := a.getSchema(ctx, providerName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if provider has no data source schemas
+	if len(schema.DataSources) == 0 {
+		return nil, fmt.Errorf("provider has no data source schemas")
+	}
+
+	// Find the specific data source in cached schema
+	desc, exists := schema.DataSources[dataSourceType]
+	if !exists {
+		return nil, fmt.Errorf("data source type %s not found in provider %s", dataSourceType, providerName)
+	}
+
+	return desc, nil
 }
 
-// ListDataSources lists all available data source types for a provider - not implemented
+// ListDataSources lists all available data source types for a provider
 func (a *OpenTofuAdapter) ListDataSources(ctx context.Context, providerName string) ([]string, error) {
-	return nil, fmt.Errorf("ListDataSources not implemented")
+	// Ensure provider is loaded
+	if err := a.LoadProvider(ctx, providerName); err != nil {
+		return nil, err
+	}
+
+	// Get cached schema
+	schema, err := a.getSchema(ctx, providerName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if provider has no data source schemas
+	if len(schema.DataSources) == 0 {
+		return nil, fmt.Errorf("provider has no data source schemas")
+	}
+
+	// Extract data source type names from cached schema
+	dataSourceTypes := make([]string, 0, len(schema.DataSources))
+	for dataSourceType := range schema.DataSources {
+		dataSourceTypes = append(dataSourceTypes, dataSourceType)
+	}
+
+	return dataSourceTypes, nil
 }
 
 func (a *OpenTofuAdapter) Cleanup(ctx context.Context) {
@@ -750,14 +803,26 @@ func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerName str
 		return "", fmt.Errorf("failed to get provider download info: %w", err)
 	}
 
-	// Create a temporary directory for this provider
-	providerDir := filepath.Join(a.tmpDir, strings.ReplaceAll(providerName, "/", "_"))
+	// Download and extract provider
+	binaryPath, err := a.downloadAndExtractProvider(ctx, providerName, downloadInfo.DownloadURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to download provider: %w", err)
+	}
+
+	return binaryPath, nil
+}
+
+// downloadAndExtractProvider downloads and extracts a provider binary
+func (pm *OpenTofuAdapter) downloadAndExtractProvider(ctx context.Context, providerName, downloadURL string) (string, error) {
+
+	// Create provider directory
+	providerDir := filepath.Join(pm.tmpDir, strings.ReplaceAll(providerName, "/", "_"))
 	if err := os.MkdirAll(providerDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create provider directory: %w", err)
 	}
 
 	// Check if binary already exists
-	binaryPath, err := a.findProviderBinary(providerDir)
+	binaryPath, err := pm.findProviderBinary(providerDir)
 	if err == nil {
 		// Binary exists, check if it's executable
 		if info, err := os.Stat(binaryPath); err == nil && info.Mode()&0111 != 0 {
@@ -765,21 +830,28 @@ func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerName str
 		}
 	}
 
-	// Download the provider archive
-	reader, err := a.registry.Download(ctx, downloadInfo.DownloadURL)
-	if err != nil {
+	// Download zip file
+	zipPath := filepath.Join(providerDir, "provider.zip")
+	if err := pm.downloadFile(ctx, downloadURL, zipPath); err != nil {
 		return "", fmt.Errorf("failed to download provider: %w", err)
 	}
-	defer reader.Close()
 
-	// The actual download and extraction logic would be similar to the existing manager
-	// For now, return a placeholder path
-	binaryName := fmt.Sprintf("terraform-provider-%s", strings.Split(providerName, "/")[1])
-	binaryPath = filepath.Join(providerDir, binaryName)
+	// Extract zip file
+	if err := pm.extractZip(zipPath, providerDir); err != nil {
+		return "", fmt.Errorf("failed to extract provider: %w", err)
+	}
 
-	// TODO: Implement actual download and extraction
-	// This is a simplified version for the migration
-	return binaryPath, fmt.Errorf("download not fully implemented yet - use legacy adapter")
+	// Find and make binary executable
+	binaryPath, err = pm.findProviderBinary(providerDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to find provider binary: %w", err)
+	}
+
+	if err := os.Chmod(binaryPath, 0755); err != nil {
+		return "", fmt.Errorf("failed to make binary executable: %w", err)
+	}
+
+	return binaryPath, nil
 }
 
 func (a *OpenTofuAdapter) formatDiagnostics(diags providerops.Diagnostics) string {
@@ -799,4 +871,59 @@ func (a *OpenTofuAdapter) formatDiagnostics(diags providerops.Diagnostics) strin
 	}
 
 	return strings.Join(messages, "; ")
+}
+
+// downloadFile downloads a file from URL to local path
+func (pm *OpenTofuAdapter) downloadFile(ctx context.Context, url, path string) error {
+	resp, err := pm.registry.Download(ctx, url)
+	if err != nil {
+		return err
+	}
+	defer resp.Close()
+
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = io.Copy(file, resp)
+	return err
+}
+
+// extractZip extracts a zip file to a destination directory
+func (pm *OpenTofuAdapter) extractZip(src, dest string) error {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+
+		path := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.FileInfo().Mode())
+			rc.Close()
+			continue
+		}
+
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.FileInfo().Mode())
+		if err != nil {
+			rc.Close()
+			return err
+		}
+
+		_, err = io.Copy(file, rc)
+		file.Close()
+		rc.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

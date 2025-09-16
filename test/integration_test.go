@@ -49,7 +49,7 @@ func NewTestHelper(t *testing.T) *TestHelper {
 	registryClient := registry.NewOpenTofuClient()
 
 	// Initialize provider manager
-	providerManager := provider.NewManager(tempDir, registryClient)
+	providerManager := provider.NewAdaptiveManager(tempDir, registryClient)
 
 	// Create tool handlers
 	toolHandlers := tools.New(registryClient, providerManager, stor)
@@ -421,8 +421,8 @@ func testStateManagement(t *testing.T, th *TestHelper) {
 func testDataSources(t *testing.T, th *TestHelper) {
 	t.Run("DescribeDataSource", func(t *testing.T) {
 		result, err := th.CallTool("provider-datasources-describe", map[string]any{
-			"provider":        "hashicorp/random",
-			"datasource_type": "random_string",
+			"provider":         "hashicorp/random",
+			"data_source_type": "random_string",
 		})
 		// The hashicorp/random provider doesn't have data sources, so this is expected to fail
 		if result.IsError {
@@ -436,8 +436,8 @@ func testDataSources(t *testing.T, th *TestHelper) {
 
 	t.Run("ReadDataSource", func(t *testing.T) {
 		result, err := th.CallTool("lifecycle-datasources-read", map[string]any{
-			"provider":        "hashicorp/random",
-			"datasource_type": "random_string",
+			"provider":         "hashicorp/random",
+			"data_source_type": "random_string",
 			"config": map[string]any{
 				"length":  8,
 				"special": false,
