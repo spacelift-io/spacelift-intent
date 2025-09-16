@@ -213,6 +213,12 @@ func (a *OpenTofuAdapter) getOpentofuDataSourceSchema(ctx context.Context, provi
 	}
 
 	dataSourceSchemas := maps.Collect(schemaResp.ProviderSchema().DataResourceTypeSchemas())
+
+	// Check if provider has any data sources first
+	if len(dataSourceSchemas) == 0 {
+		return nil, fmt.Errorf("provider has no data source schemas")
+	}
+
 	opentofuSchema, exists := dataSourceSchemas[dataSourceType]
 	if !exists {
 		return nil, fmt.Errorf("data source type %s not found in opentofu schema", dataSourceType)
@@ -741,11 +747,6 @@ func (a *OpenTofuAdapter) ListDataSources(ctx context.Context, providerName stri
 	schema, err := a.getSchema(ctx, providerName)
 	if err != nil {
 		return nil, err
-	}
-
-	// Check if provider has no data source schemas
-	if len(schema.DataSources) == 0 {
-		return nil, fmt.Errorf("provider has no data source schemas")
 	}
 
 	// Extract data source type names from cached schema

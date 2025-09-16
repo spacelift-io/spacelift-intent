@@ -486,8 +486,9 @@ func testDependencies(t *testing.T, th *TestHelper) {
 
 	t.Run("AddDependency", func(t *testing.T) {
 		result, err := th.CallTool("lifecycle-resources-dependencies-add", map[string]any{
-			"resource_id": childResourceID,
-			"depends_on":  []string{parentResourceID},
+			"from_resource_id": childResourceID,
+			"to_resource_id":   parentResourceID,
+			"dependency_type":  "explicit",
 		})
 		// Dependencies might fail due to foreign key constraints if resources aren't properly stored
 		if result.IsError {
@@ -520,8 +521,8 @@ func testDependencies(t *testing.T, th *TestHelper) {
 
 	t.Run("RemoveDependency", func(t *testing.T) {
 		result, err := th.CallTool("lifecycle-resources-dependencies-remove", map[string]any{
-			"resource_id": childResourceID,
-			"depends_on":  []string{parentResourceID},
+			"from_resource_id": childResourceID,
+			"to_resource_id":   parentResourceID,
 		})
 		th.AssertToolSuccess(result, err, "lifecycle-resources-dependencies-remove")
 
