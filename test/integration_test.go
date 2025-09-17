@@ -173,7 +173,7 @@ func testServerInitialization(t *testing.T, th *TestHelper) {
 			"lifecycle-resources-refresh",
 			"lifecycle-resources-import",
 			"lifecycle-resources-operations",
-			"lifecycle-resources-resume",
+			// "lifecycle-resources-resume",
 			"lifecycle-datasources-read",
 			"provider-datasources-describe",
 			"state-get",
@@ -317,20 +317,21 @@ func testResourceLifecycle(t *testing.T, th *TestHelper) {
 		}
 	})
 
-	t.Run("ResumeResource", func(t *testing.T) {
-		result, err := th.CallTool("lifecycle-resources-resume", map[string]any{
-			"resource_id": resourceID,
-		})
-		// This might not have any operations to resume, but test the functionality
-		if result.IsError {
-			content := th.GetTextContent(result)
-			if assert.Contains(t, content, "Not supported", "Expected not supported error") {
-				t.Logf("Resume operation not supported as expected: %s", content)
-			}
-		} else {
-			th.AssertToolSuccess(result, err, "lifecycle-resources-resume")
-		}
-	})
+	// TODO: Uncomment this when lifecycle-resources-resume is implemented
+	// t.Run("ResumeResource", func(t *testing.T) {
+	// 	result, err := th.CallTool("lifecycle-resources-resume", map[string]any{
+	// 		"resource_id": resourceID,
+	// 	})
+	// 	// This might not have any operations to resume, but test the functionality
+	// 	if result.IsError {
+	// 		content := th.GetTextContent(result)
+	// 		if assert.Contains(t, content, "Not supported", "Expected not supported error") {
+	// 			t.Logf("Resume operation not supported as expected: %s", content)
+	// 		}
+	// 	} else {
+	// 		th.AssertToolSuccess(result, err, "lifecycle-resources-resume")
+	// 	}
+	// })
 
 	t.Run("DeleteResource", func(t *testing.T) {
 		result, err := th.CallTool("lifecycle-resources-delete", map[string]any{

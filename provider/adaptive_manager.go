@@ -2,8 +2,9 @@ package provider
 
 import (
 	"context"
-	"os"
+	"fmt"
 
+	"github.com/spacelift-io/spacelift-intent/provider/legacy"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
@@ -16,11 +17,13 @@ type AdaptiveManager struct {
 func NewAdaptiveManager(tmpDir string, registry types.RegistryClient) types.ProviderManager {
 	var adapter types.ProviderManager
 
-	// Check feature flag to determine which implementation to use
-	if os.Getenv("USE_OPENTOFU_PROVIDER_LIB") == "true" {
-		adapter = NewOpenTofuAdapter(tmpDir, registry)
+	// Use build tag to determine which implementation to use
+	if useLegacyProvider {
+		fmt.Println("Using legacy provider")
+		adapter = legacy.NewManager(tmpDir, registry)
 	} else {
-		adapter = NewManager(tmpDir, registry)
+		fmt.Println("Using new provider")
+		adapter = NewOpenTofuAdapter(tmpDir, registry)
 	}
 
 	return &AdaptiveManager{

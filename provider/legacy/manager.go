@@ -1,4 +1,4 @@
-package provider
+package legacy
 
 import (
 	"archive/zip"
@@ -8,14 +8,10 @@ import (
 	"io"
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
 	"github.com/vmihailenco/msgpack/v5"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -25,28 +21,6 @@ import (
 )
 
 var ErrorBinaryNotFound = fmt.Errorf("provider binary not found")
-
-// grpcProviderPlugin implements plugin.GRPCPlugin for the provider
-type grpcProviderPlugin struct {
-	plugin.Plugin
-}
-
-func (p *grpcProviderPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (any, error) {
-	return pb.NewProviderClient(c), nil
-}
-
-func (p *grpcProviderPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-	return fmt.Errorf("server not supported")
-}
-
-// providerInfo holds internal provider information including plugin client
-type providerInfo struct {
-	pluginClient *plugin.Client
-	provider     pb.ProviderClient
-	schema       *pb.GetProviderSchema_Response
-	binary       string
-	version      string
-}
 
 // DefaultManager implements types.ProviderManager
 type DefaultManager struct {
@@ -306,74 +280,29 @@ func (pm *DefaultManager) findProviderBinary(dir string) (string, error) {
 // initializeProvider initializes a provider plugin
 func (pm *DefaultManager) initializeProvider(ctx context.Context, providerName, binaryPath, version string) error {
 
-	// Create logger
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:   fmt.Sprintf("terraform-provider-%s", providerName),
-		Level:  hclog.Error,
-		Output: os.Stderr,
-	})
-
-	// Create plugin client
-	cmd := exec.Command(binaryPath)
-	cmd.Env = os.Environ()
-
-	client := plugin.NewClient(&plugin.ClientConfig{
-		HandshakeConfig: plugin.HandshakeConfig{
-			ProtocolVersion:  5,
-			MagicCookieKey:   "TF_PLUGIN_MAGIC_COOKIE",
-			MagicCookieValue: "d602bf8f470bc67ca7faa0386276bbdd4330efaf76d1a219cb4d6991ca9872b2",
-		},
-		Plugins: map[string]plugin.Plugin{
-			"provider": &grpcProviderPlugin{},
-		},
-		Cmd:              cmd,
-		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
-		Logger:           logger,
-		SyncStdout:       os.Stdout,
-		SyncStderr:       os.Stderr,
-	})
-
-	// Connect to plugin
-	rpcClient, err := client.Client()
+	// Initialize provider using build-tagged implementation
+	providerInfo, err := startProviderPlugin(binaryPath, providerName)
 	if err != nil {
-		client.Kill()
-		return fmt.Errorf("failed to get client: %w", err)
+		return fmt.Errorf("failed to start provider plugin: %w", err)
 	}
 
-	// Get provider client
-	raw, err := rpcClient.Dispense("provider")
+	// Load schema - kill on error
+	schema, err := providerInfo.provider.GetSchema(ctx, &pb.GetProviderSchema_Request{})
 	if err != nil {
-		client.Kill()
-		return fmt.Errorf("failed to dispense provider: %w", err)
-	}
-
-	provider, ok := raw.(pb.ProviderClient)
-	if !ok {
-		client.Kill()
-		return fmt.Errorf("provider is not a ProviderClient")
-	}
-
-	// Load schema
-	schema, err := provider.GetSchema(ctx, &pb.GetProviderSchema_Request{})
-	if err != nil {
-		client.Kill()
+		providerInfo.Kill()
 		return fmt.Errorf("failed to get schema: %w", err)
 	}
+	providerInfo.schema = schema
 
-	// Configure provider
-	if err := pm.configureProvider(ctx, provider, providerName); err != nil {
-		client.Kill()
+	// Configure provider - kill on error
+	if err := pm.configureProvider(ctx, providerInfo.provider, providerName); err != nil {
+		providerInfo.Kill()
 		return fmt.Errorf("failed to configure provider: %w", err)
 	}
 
-	// Store provider info
-	pm.providers[providerName] = &providerInfo{
-		pluginClient: client,
-		provider:     provider,
-		schema:       schema,
-		binary:       binaryPath,
-		version:      version,
-	}
+	// Set additional info and store
+	providerInfo.version = version
+	pm.providers[providerName] = providerInfo
 
 	return nil
 }
@@ -433,10 +362,10 @@ func (pm *DefaultManager) GetProviderVersion(ctx context.Context, providerName s
 // Cleanup shuts down all provider clients
 func (pm *DefaultManager) Cleanup(ctx context.Context) {
 	for _, provider := range pm.providers {
-		provider.pluginClient.Kill()
+		provider.Kill()
 	}
 	pm.providers = make(map[string]*providerInfo)
-	plugin.CleanupClients()
+	cleanupPlugins()
 }
 
 // Resource management methods
