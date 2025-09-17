@@ -1,8 +1,6 @@
 module github.com/spacelift-io/spacelift-intent
 
-go 1.24
-
-toolchain go1.24.3
+go 1.25.1
 
 require (
 	github.com/apparentlymart/opentofu-providers v0.0.0-20250724234429-1ac1eb53eced
