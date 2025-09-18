@@ -17,6 +17,7 @@ Unlike direct OpenTofu/Terraform usage, this server handles the complexity of pl
 - Create Resource: provider-resources-describe → analyze ALL required arguments → lifecycle-resources-create
 - Update Resource: state-get → provider-resources-describe → lifecycle-resources-update
 - Delete Resource: state-get → lifecycle-resources-dependencies-get → Get "CONFIRM" → lifecycle-resources-delete
+- Untrack Resource: state-get → lifecycle-resources-dependencies-get → Get "CONFIRM" → lifecycle-resources-untrack
 
 **3. Tool Interaction:**
 - Validate required parameters before calling tools
@@ -34,7 +35,7 @@ Unlike direct OpenTofu/Terraform usage, this server handles the complexity of pl
 
 ## Essential Tools
 
-- **Resources**: lifecycle-resources-create/update/delete, state-list, state-get
+- **Resources**: lifecycle-resources-create/update/delete/untrack, state-list, state-get
 - **Dependencies**: lifecycle-resources-dependencies-get
 - **Schema**: provider-search, provider-resources-describe
 - **Operations**: lifecycle-resources-operations

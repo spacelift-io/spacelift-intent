@@ -70,8 +70,8 @@ func (th *ToolHandlers) Tools() []internal.Tool {
 	// Register import resource tool
 	tools = append(tools, resourceLifecycle.Import(th.storage, th.providerManager))
 
-	// Register eject resource tool
-	tools = append(tools, state.Eject(th.storage))
+	// Register untrack resource tool
+	tools = append(tools, resourceLifecycle.Untrack(th.storage))
 
 	// Register dependency management tools
 	tools = append(tools, dependencies.Add(th.storage))
