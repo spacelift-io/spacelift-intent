@@ -2,6 +2,7 @@ package test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -61,6 +62,52 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	err := json.Unmarshal([]byte(configJSON), &config)
 	require.NoError(t, err, "Failed to parse config JSON")
 
+	// Helper function to ensure resource exists in state before operations that require it
+	ensureResourceInState := func(t *testing.T) {
+		// Check if resource already exists in state
+		result, err := th.CallTool("state-get", map[string]any{
+			"resource_id": resourceID,
+		})
+
+		// If resource doesn't exist, create it to populate state
+		if result.IsError {
+			content := th.GetTextContent(result)
+			if strings.Contains(content, "No state found") {
+				t.Logf("Resource not found in state, creating it for test setup...")
+				createResult, createErr := th.CallTool("lifecycle-resources-create", map[string]any{
+					"resource_id":   resourceID,
+					"provider":      provider,
+					"resource_type": resourceType,
+					"config":        config,
+				})
+				require.NoError(t, createErr, "Failed to setup resource for test")
+				if createResult.IsError {
+					// If creation fails (e.g., AWS issues), try importing existing resource
+					t.Logf("Creation failed, attempting import...")
+					importResult, importErr := th.CallTool("lifecycle-resources-import", map[string]any{
+						"resource_id":   resourceID,
+						"provider":      provider,
+						"resource_type": resourceType,
+						"import_id":     resourceID,
+						"config":        config,
+					})
+					if importResult.IsError {
+						t.Fatalf("Both create and import failed, cannot setup test: create=%s, import=%s",
+							th.GetTextContent(createResult), th.GetTextContent(importResult))
+					}
+					require.NoError(t, importErr, "Failed to import resource for test setup")
+					t.Logf("Resource imported successfully for test setup")
+				} else {
+					t.Logf("Resource created successfully for test setup")
+				}
+			} else {
+				require.NoError(t, err, "Unexpected error checking state: %s", content)
+			}
+		} else {
+			t.Logf("Resource already exists in state, proceeding with test")
+		}
+	}
+
 	t.Run("CreateRabbitMQBroker", func(t *testing.T) {
 		result, err := th.CallTool("lifecycle-resources-create", map[string]any{
 			"resource_id":   resourceID,
@@ -78,6 +125,10 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	})
 
 	t.Run("RefreshRabbitMQBroker", func(t *testing.T) {
+		// Ensure resource exists in state before testing refresh
+		ensureResourceInState(t)
+
+		// Now proceed with refresh
 		result, err := th.CallTool("lifecycle-resources-refresh", map[string]any{
 			"resource_id": resourceID,
 		})
@@ -90,6 +141,9 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	})
 
 	t.Run("GetRabbitMQBrokerState", func(t *testing.T) {
+		// Ensure resource exists in state before testing state retrieval
+		ensureResourceInState(t)
+
 		result, err := th.CallTool("state-get", map[string]any{
 			"resource_id": resourceID,
 		})
@@ -103,6 +157,9 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	})
 
 	t.Run("DeleteRabbitMQBroker", func(t *testing.T) {
+		// Ensure resource exists in state before testing deletion
+		ensureResourceInState(t)
+
 		result, err := th.CallTool("lifecycle-resources-delete", map[string]any{
 			"resource_id": resourceID,
 		})
