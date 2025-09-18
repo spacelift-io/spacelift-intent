@@ -45,17 +45,42 @@ func untrack(storage types.Storage) i.ToolHandler {
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found in state", args.ResourceID)), nil
 		}
 
-		// Parse the stored state for history
+		// Parse the stored state
 		var state map[string]any
-		json.Unmarshal([]byte(record.State), &state)
+		if err := json.Unmarshal([]byte(record.State), &state); err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to parse stored state: %v", err)), nil
+		}
+
+		input := types.ResourceOperationInput{
+			ResourceID:    record.ResourceID,
+			ResourceType:  record.ResourceType,
+			Provider:      record.Provider,
+			Operation:     "untrack",
+			CurrentState:  state,
+			ProposedState: nil, // no proposed state for untrack
+		}
+
+		operation, err := newResourceOperation(input)
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
+		}
+
+		defer func() {
+			if err != nil {
+				errMessage := fmt.Sprintf("Failed to delete resource: %v", err)
+				operation.Failed = &errMessage
+			}
+			storage.SaveResourceOperation(ctx, operation)
+		}()
 
 		// Add operation context for automatic history tracking
 		ctx = context.WithValue(ctx, types.OperationContextKey, "untrack")
 		ctx = context.WithValue(ctx, types.ChangedByContextKey, "mcp-user")
 
 		// Remove the state from database (dependencies automatically cleaned up via CASCADE)
-		if err := storage.DeleteState(ctx, args.ResourceID); err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to untrack resource from state: %v", err)), nil
+		if err = storage.DeleteState(ctx, args.ResourceID); err != nil {
+			err = fmt.Errorf("Failed to untrack resource from state: %w", err)
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		return i.RespondJSON(map[string]any{
