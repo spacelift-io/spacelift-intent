@@ -23,7 +23,7 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	}
 
 	// Use extended timeout for MQ broker operations (10 minutes)
-	th := NewTestHelperWithTimeout(t, 10*time.Minute)
+	th := NewTestHelperWithTimeout(t, 40*time.Minute, "/Users/michalgolinski/spacelift/intent/worktrees/spacelift-intent-cty/test/rabbitmq")
 	defer th.Cleanup()
 
 	const resourceID = "ultimate-rabbit"
@@ -122,6 +122,22 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 		require.Contains(t, content, "created", "Should show created status")
 
 		t.Logf("RabbitMQ broker created successfully: %s", content)
+	})
+
+	t.Run("ImportRabbitMQBroker", func(t *testing.T) {
+		// Now attempt to import the resource
+		result, err := th.CallTool("lifecycle-resources-import", map[string]any{
+			"resource_id":   resourceID,
+			"provider":      provider,
+			"resource_type": resourceType,
+		})
+		th.AssertToolSuccess(result, err, "lifecycle-resources-import")
+
+		content := th.GetTextContent(result)
+		require.Contains(t, content, resourceID, "Import result should contain resource ID")
+		require.Contains(t, content, "imported", "Should show imported status")
+
+		t.Logf("RabbitMQ broker imported: %s", content)
 	})
 
 	t.Run("RefreshRabbitMQBroker", func(t *testing.T) {

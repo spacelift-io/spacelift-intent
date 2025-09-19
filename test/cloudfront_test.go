@@ -64,7 +64,7 @@ func loadAWSCredentials(t *testing.T) map[string]string {
 }
 
 // NewTestHelperWithTimeout creates a test helper with custom timeout for long-running operations
-func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration) *TestHelper {
+func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs ...string) *TestHelper {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
 	// Create temporary directories
