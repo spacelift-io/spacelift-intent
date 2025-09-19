@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -52,18 +51,12 @@ func delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
 		}
 
-		// Parse the stored state
-		var state map[string]any
-		if err := json.Unmarshal([]byte(record.State), &state); err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to parse stored state: %v", err)), nil
-		}
-
 		input := types.ResourceOperationInput{
 			ResourceID:    record.ResourceID,
 			ResourceType:  record.ResourceType,
 			Provider:      record.Provider,
 			Operation:     "delete",
-			CurrentState:  state,
+			CurrentState:  record.State,
 			ProposedState: nil, // no proposed state for delete
 		}
 
@@ -81,7 +74,7 @@ func delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Delete the resource using the provider manager
-		err = providerManager.DeleteResource(ctx, record.Provider, record.ResourceType, state)
+		err = providerManager.DeleteResource(ctx, record.Provider, record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("Failed to delete resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil

@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -109,18 +108,12 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}
 
 		// Persist state to database
-		stateBytes, err := json.Marshal(state)
-		if err != nil {
-			err = fmt.Errorf("failed to marshal state for storage: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-
 		record := types.StateRecord{
 			ResourceID:   args.ResourceID,
 			Provider:     args.Provider,
 			ResourceType: args.ResourceType,
 			Version:      version,
-			State:        string(stateBytes),
+			State:        state,
 		}
 
 		// Add operation context for automatic history tracking

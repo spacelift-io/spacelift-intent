@@ -123,12 +123,10 @@ func (s *sqliteStorage) createTables() error {
 
 // SaveState stores a state record and automatically records history if context provided
 func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord) error {
-	// Check if resource already exists for history tracking
-	var currentState map[string]any
-	if operation := ctx.Value(types.OperationContextKey); operation != nil {
-		if existing, err := s.GetState(ctx, record.ResourceID); err == nil && existing != nil {
-			json.Unmarshal([]byte(existing.State), &currentState)
-		}
+	// Serialize state to JSON
+	stateJSON, err := json.Marshal(record.State)
+	if err != nil {
+		return fmt.Errorf("failed to serialize state: %w", err)
 	}
 
 	// Save the state
@@ -137,7 +135,7 @@ func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord)
 	VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 	`
 
-	_, err := s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.Version, record.ResourceType, record.State)
+	_, err = s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.Version, record.ResourceType, string(stateJSON))
 	if err != nil {
 		return err
 	}
@@ -170,12 +168,21 @@ func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRe
 	row := s.db.QueryRowContext(ctx, query, id)
 
 	var record types.StateRecord
-	err := row.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &record.State, &record.CreatedAt)
+	var stateJSON string
+	err := row.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	// Deserialize state from JSON
+	if stateJSON != "" {
+		err = json.Unmarshal([]byte(stateJSON), &record.State)
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize state: %w", err)
+		}
 	}
 
 	return &record, nil
@@ -198,10 +205,20 @@ func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, er
 	var records []types.StateRecord
 	for rows.Next() {
 		var record types.StateRecord
-		err := rows.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &record.State, &record.CreatedAt)
+		var stateJSON string
+		err := rows.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
+
+		// Deserialize state from JSON
+		if stateJSON != "" {
+			err = json.Unmarshal([]byte(stateJSON), &record.State)
+			if err != nil {
+				return nil, fmt.Errorf("failed to deserialize state: %w", err)
+			}
+		}
+
 		records = append(records, record)
 	}
 
@@ -216,14 +233,6 @@ func (s *sqliteStorage) UpdateState(ctx context.Context, record types.StateRecor
 
 // DeleteState removes a state record by ID and automatically records history if context provided
 func (s *sqliteStorage) DeleteState(ctx context.Context, id string) error {
-	// Get existing state for history tracking
-	var currentState map[string]any
-	if operation := ctx.Value(types.OperationContextKey); operation != nil {
-		if existing, err := s.GetState(ctx, id); err == nil && existing != nil {
-			json.Unmarshal([]byte(existing.State), &currentState)
-		}
-	}
-
 	// Delete the state
 	query := `DELETE FROM state_records WHERE id = ?`
 	_, err := s.db.ExecContext(ctx, query, id)

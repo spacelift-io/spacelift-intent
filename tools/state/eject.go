@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -44,10 +43,6 @@ func eject(storage types.Storage) i.ToolHandler {
 		if record == nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found in state", args.ResourceID)), nil
 		}
-
-		// Parse the stored state for history
-		var state map[string]any
-		json.Unmarshal([]byte(record.State), &state)
 
 		// Add operation context for automatic history tracking
 		ctx = context.WithValue(ctx, types.OperationContextKey, "eject")

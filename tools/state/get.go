@@ -2,7 +2,6 @@ package state
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -72,7 +71,7 @@ func get(storage types.Storage) i.ToolHandler {
 			"provider":      record.Provider,
 			"version":       record.Version,
 			"resource_type": record.ResourceType,
-			"state":         json.RawMessage(record.State),
+			"state":         record.State,
 			"created_at":    record.CreatedAt,
 			"dependencies":  dependencyIDs,
 			"dependents":    dependentIDs,

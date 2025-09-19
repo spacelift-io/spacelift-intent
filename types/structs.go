@@ -36,12 +36,12 @@ type ProviderSearchResult struct {
 
 // StateRecord represents a stored resource state
 type StateRecord struct {
-	ResourceID   string `json:"resource_id"`
-	Provider     string `json:"provider"`
-	Version      string `json:"version"`
-	ResourceType string `json:"resource_type"`
-	State        string `json:"state"`
-	CreatedAt    string `json:"created_at"`
+	ResourceID   string         `json:"resource_id"`
+	Provider     string         `json:"provider"`
+	Version      string         `json:"version"`
+	ResourceType string         `json:"resource_type"`
+	State        map[string]any `json:"state"`
+	CreatedAt    string         `json:"created_at"`
 }
 
 // FieldMapping represents which fields impact which in a dependency

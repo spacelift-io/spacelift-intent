@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -54,17 +53,12 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}
 
 		// Parse the stored state
-		var currentState map[string]any
-		if err := json.Unmarshal([]byte(record.State), &currentState); err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to parse stored state: %v", err)), nil
-		}
-
 		input := types.ResourceOperationInput{
 			ResourceID:   args.ResourceID,
 			Provider:     record.Provider,
 			ResourceType: record.ResourceType,
 			Operation:    "refresh",
-			CurrentState: currentState,
+			CurrentState: record.State,
 		}
 
 		operation, err := newResourceOperation(input)
@@ -81,7 +75,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Refresh the resource using the provider manager
-		refreshedState, err := providerManager.RefreshResource(ctx, record.Provider, record.ResourceType, currentState)
+		refreshedState, err := providerManager.RefreshResource(ctx, record.Provider, record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("Failed to refresh resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -94,7 +88,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		if len(refreshedState) == 0 {
 			status, message = "warning", "Resource appears to have been deleted externally"
 			responseState = map[string]any{}
-		} else if !reflect.DeepEqual(currentState, refreshedState) {
+		} else if !reflect.DeepEqual(record.State, refreshedState) {
 			status, message = "warning", "Resource has drifted - changes detected during refresh"
 			responseState = refreshedState
 		} else {
@@ -104,18 +98,12 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		// Save state if we have refreshed data
 		if len(refreshedState) > 0 {
-			stateBytes, errJSON := json.Marshal(refreshedState)
-			if errJSON != nil {
-				err = fmt.Errorf("Failed to marshal refreshed state for storage: %w", errJSON)
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-
 			updatedRecord := types.StateRecord{
 				ResourceID:   args.ResourceID,
 				Provider:     record.Provider,
 				Version:      record.Version,
 				ResourceType: record.ResourceType,
-				State:        string(stateBytes),
+				State:        refreshedState,
 			}
 
 			// Add operation context for automatic history tracking

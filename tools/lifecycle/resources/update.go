@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -61,17 +60,12 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}
 
 		// Parse the stored state
-		var currentState map[string]any
-		if err := json.Unmarshal([]byte(record.State), &currentState); err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to parse stored state: %v", err)), nil
-		}
-
 		input := types.ResourceOperationInput{
 			ResourceID:    args.ResourceID,
 			ResourceType:  record.ResourceType,
 			Provider:      record.Provider,
 			Operation:     "update",
-			CurrentState:  currentState,
+			CurrentState:  record.State,
 			ProposedState: args.Config,
 		}
 
@@ -89,7 +83,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Update the resource using the provider manager
-		newState, err := providerManager.UpdateResource(ctx, record.Provider, record.ResourceType, currentState, args.Config)
+		newState, err := providerManager.UpdateResource(ctx, record.Provider, record.ResourceType, record.State, args.Config)
 		if err != nil {
 			err = fmt.Errorf("Failed to update resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -101,18 +95,12 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}
 
 		// Update state in database
-		stateBytes, err := json.Marshal(newState)
-		if err != nil {
-			err = fmt.Errorf("Failed to marshal state for storage: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
-		}
-
 		updatedRecord := types.StateRecord{
 			ResourceID:   args.ResourceID,
 			Provider:     record.Provider,
 			Version:      record.Version,
 			ResourceType: record.ResourceType,
-			State:        string(stateBytes),
+			State:        newState,
 			CreatedAt:    record.CreatedAt, // Keep original creation time
 		}
 
