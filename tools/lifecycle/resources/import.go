@@ -52,7 +52,7 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"description": "The OpenTofu resource type (e.g., 'random_string', 'aws_instance')",
 				},
 			},
-			Required: []string{"resource_id", "provider", "resource_type"},
+			Required: []string{"import_id", "destination_id", "provider", "resource_type"},
 		},
 	}, Handler: _import(storage, providerManager)}
 }
