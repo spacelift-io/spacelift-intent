@@ -67,8 +67,17 @@ func loadAWSCredentials(t *testing.T) map[string]string {
 func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs ...string) *TestHelper {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
-	// Create temporary directories
-	tempDir := t.TempDir()
+	// Create temporary or custom directories
+	var tempDir string
+	if len(optionalDirs) > 0 && optionalDirs[0] != "" {
+		tempDir = optionalDirs[0]
+	} else {
+		if testDir, ok := t.Context().Value("testDir").(string); ok && testDir != "" {
+			tempDir = testDir
+		} else {
+			tempDir = t.TempDir()
+		}
+	}
 	dbDir := filepath.Join(tempDir, "db")
 	err := os.MkdirAll(dbDir, 0755)
 	require.NoError(t, err, "Failed to create database directory")
