@@ -436,15 +436,6 @@ func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerName, reso
 		return fmt.Errorf("plan deletion failed: %w", err)
 	}
 
-	for diag := range planResp.Diagnostics().All() {
-		fmt.Printf(
-			"PLAN [%s] %s\n  %s\n\n",
-			diag.Severity(),
-			diag.Summary(),
-			diag.Detail(),
-		)
-	}
-
 	if planResp.Diagnostics().HasErrors() {
 		return fmt.Errorf("plan deletion failed: %s", a.formatDiagnostics(planResp.Diagnostics()))
 	}
@@ -468,15 +459,6 @@ func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerName, reso
 	applyResp, err := provider.ApplyManagedResourceChange(ctx, applyReq)
 	if err != nil {
 		return fmt.Errorf("apply deletion failed: %w", err)
-	}
-
-	for diag := range applyResp.Diagnostics().All() {
-		fmt.Printf(
-			"APPLY [%s] %s\n  %s\n\n",
-			diag.Severity(),
-			diag.Summary(),
-			diag.Detail(),
-		)
 	}
 
 	if applyResp.Diagnostics().HasErrors() {
