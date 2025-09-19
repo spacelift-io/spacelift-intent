@@ -11,9 +11,10 @@ import (
 )
 
 type importArgs struct {
-	ResourceID   string `json:"resource_id"`
-	Provider     string `json:"provider"`
-	ResourceType string `json:"resource_type"`
+	ImportID      string `json:"import_id"`
+	DestinationID string `json:"destination_id"`
+	Provider      string `json:"provider"`
+	ResourceType  string `json:"resource_type"`
 }
 
 func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool {
@@ -34,9 +35,13 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
-				"resource_id": map[string]any{
+				"import_id": map[string]any{
 					"type":        "string",
-					"description": "Unique identifier for this resource instance in the state (must be unique and intuitive)",
+					"description": "The provider-specific identifier for the infrastructure you want to import",
+				},
+				"destination_id": map[string]any{
+					"type":        "string",
+					"description": "This is the resource name type of identifier we will give the resource in state",
 				},
 				"provider": map[string]any{
 					"type":        "string",
@@ -55,16 +60,16 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 func _import(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args importArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
-		existingState, err := storage.GetState(ctx, args.ResourceID)
+		existingState, err := storage.GetState(ctx, args.DestinationID)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to check existing state: %v", err)), nil
 		}
 		if existingState != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' already exists", args.ResourceID)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' already exists", args.DestinationID)), nil
 		}
 
 		input := types.ResourceOperationInput{
-			ResourceID:    args.ResourceID,
+			ResourceID:    args.DestinationID,
 			ResourceType:  args.ResourceType,
 			Provider:      args.Provider,
 			Operation:     "import",
@@ -86,7 +91,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Import resource using provider manager
-		state, err := providerManager.ImportResource(ctx, args.Provider, args.ResourceType, args.ResourceID)
+		state, err := providerManager.ImportResource(ctx, args.Provider, args.ResourceType, args.ImportID)
 		if err != nil {
 			err = fmt.Errorf("Failed to import resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -106,7 +111,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		// Persist state to database
 		record := types.StateRecord{
-			ResourceID:   args.ResourceID,
+			ResourceID:   args.DestinationID,
 			Provider:     args.Provider,
 			Version:      version,
 			ResourceType: args.ResourceType,
@@ -125,10 +130,11 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		operation.ProposedState = state
 
 		return RespondJSON(map[string]any{
-			"resource_id": args.ResourceID,
-			"result":      state,
-			"status":      "imported",
-			"message":     "resource successfully imported",
+			"import_id":      args.ImportID,
+			"destination_id": args.DestinationID,
+			"result":         state,
+			"status":         "imported",
+			"message":        "resource successfully imported",
 		})
 	})
 }

@@ -522,7 +522,7 @@ func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerName, data
 	return stateMap, nil
 }
 
-func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerName, resourceType, resourceID string) (map[string]any, error) {
+func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerName, resourceType, importID string) (map[string]any, error) {
 	// Ensure provider is loaded
 	if err := a.LoadProvider(ctx, providerName); err != nil {
 		return nil, err
@@ -542,7 +542,7 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerName, reso
 	// Create import request
 	importReq := &providerops.ImportManagedResourceStateRequest{
 		ResourceType: resourceType,
-		ID:           resourceID,
+		ID:           importID,
 	}
 
 	// Import the resource
