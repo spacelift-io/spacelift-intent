@@ -1,3 +1,5 @@
+//go:build !legacy_plugin
+
 package provider
 
 import (
