@@ -1,133 +1,20 @@
 package test
 
 import (
-	"bufio"
-	"context"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/mark3labs/mcp-go/mcptest"
-	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/require"
 
-	"github.com/spacelift-io/spacelift-intent/provider"
-	"github.com/spacelift-io/spacelift-intent/registry"
-	"github.com/spacelift-io/spacelift-intent/storage"
-	"github.com/spacelift-io/spacelift-intent/tools"
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
-// loadAWSCredentials loads AWS credentials from .env.aws file
-func loadAWSCredentials(t *testing.T) map[string]string {
-	file, err := os.Open("../.env.aws")
-	if err != nil {
-		t.Skip("Skipping test: .env.aws file not found")
-		return nil
-	}
-	defer file.Close()
 
-	credentials := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-
-			// Remove surrounding quotes if present
-			if len(value) >= 2 && ((value[0] == '"' && value[len(value)-1] == '"') ||
-				(value[0] == '\'' && value[len(value)-1] == '\'')) {
-				value = value[1 : len(value)-1]
-			}
-
-			credentials[key] = value
-		}
-	}
-
-	require.NoError(t, scanner.Err(), "Failed to read .env.aws file")
-
-	// Verify required AWS credentials are present
-	requiredKeys := []string{"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
-	for _, key := range requiredKeys {
-		require.NotEmpty(t, credentials[key], "Missing required AWS credential: %s", key)
-	}
-
-	return credentials
-}
-
-// NewTestHelperWithTimeout creates a test helper with custom timeout for long-running operations
-func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs ...string) *TestHelper {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-
-	// Create temporary or custom directories
-	var tempDir string
-	if len(optionalDirs) > 0 && optionalDirs[0] != "" {
-		tempDir = optionalDirs[0]
-	} else {
-		if testDir, ok := t.Context().Value("testDir").(string); ok && testDir != "" {
-			tempDir = testDir
-		} else {
-			tempDir = t.TempDir()
-		}
-	}
-	dbDir := filepath.Join(tempDir, "db")
-	err := os.MkdirAll(dbDir, 0755)
-	require.NoError(t, err, "Failed to create database directory")
-
-	// Initialize storage
-	stor, err := storage.NewSQLiteStorage(filepath.Join(dbDir, "state.db"))
-	require.NoError(t, err, "Failed to initialize storage")
-
-	// Initialize registry client
-	registryClient := registry.NewOpenTofuClient()
-
-	// Initialize provider manager
-	providerManager := provider.NewAdaptiveManager(tempDir, registryClient)
-
-	// Create tool handlers
-	toolHandlers := tools.New(registryClient, providerManager, stor)
-
-	// Convert tools to server tools
-	mcpTools := toolHandlers.Tools()
-	serverTools := make([]server.ServerTool, 0, len(mcpTools))
-	for _, tool := range mcpTools {
-		serverTools = append(serverTools, server.ServerTool{
-			Tool:    tool.Tool,
-			Handler: tool.Handler,
-		})
-	}
-
-	// Create test server
-	testServer := mcptest.NewUnstartedServer(t)
-	testServer.AddTools(serverTools...)
-
-	// Start the server
-	err = testServer.Start(ctx)
-	require.NoError(t, err, "Failed to start test server")
-
-	return &TestHelper{
-		t:       t,
-		ctx:     ctx,
-		cancel:  cancel,
-		tempDir: tempDir,
-		dbDir:   dbDir,
-		server:  testServer,
-		client:  testServer.Client(),
-	}
-}
 
 // TestCloudFrontDistributionCreate tests creating a CloudFront distribution using lifecycle-resources-create
 func TestCloudFrontDistributionCreate(t *testing.T) {
 	// Load AWS credentials from .env.aws
-	credentials := loadAWSCredentials(t)
+	credentials := testhelper.LoadAWSCredentials(t)
 	if credentials == nil {
 		return // Test was skipped
 	}
@@ -138,7 +25,7 @@ func TestCloudFrontDistributionCreate(t *testing.T) {
 	}
 
 	// Use extended timeout for CloudFront operations (10 minutes)
-	th := NewTestHelperWithTimeout(t, 10*time.Minute)
+	th := testhelper.NewTestHelperWithTimeout(t, 10*time.Minute)
 	defer th.Cleanup()
 
 	const resourceID = "test-cloudfront-distribution"
