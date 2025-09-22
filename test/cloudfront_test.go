@@ -21,7 +21,7 @@ import (
 
 // loadAWSCredentials loads AWS credentials from .env.aws file
 func loadAWSCredentials(t *testing.T) map[string]string {
-	file, err := os.Open(".env.aws")
+	file, err := os.Open("../.env.aws")
 	if err != nil {
 		t.Skip("Skipping test: .env.aws file not found")
 		return nil
