@@ -16,6 +16,9 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(GO_BUILD_FLAGS) -o $(BUILD_DIR)/spacelift-intent ./cmd/spacelift-intent
 
+build-legacy:
+	@mkdir -p $(BUILD_DIR)
+	GO_TAGS=legacy_plugin go build $(GO_BUILD_FLAGS) -tags=legacy_plugin -o $(BUILD_DIR)/spacelift-intent-legacy ./cmd/spacelift-intent
 
 # Clean build artifacts
 clean:
@@ -44,6 +47,21 @@ fmt:
 run:
 	./$(BUILD_DIR)/spacelift-intent
 
+# Run server with environment variables from file
+run-with-env:
+	@if [ -f .env.aws ]; then \
+		set -a; \
+		. ./.env.aws; \
+		set +a; \
+		echo "AWS Environment Variables:"; \
+		env | grep -E '^AWS_' | sort; \
+		echo ""; \
+		./$(BUILD_DIR)/spacelift-intent; \
+	else \
+		echo "Error: .env.aws file not found"; \
+		exit 1; \
+	fi
+
 # Display help
 help:
 	@echo "Available targets:"
@@ -59,6 +77,7 @@ help:
 	@echo ""
 	@echo "Run targets:"
 	@echo "  run         - Run MCP server"
+	@echo "  run-with-env - Run MCP server with environment variables from .env.aws"
 	@echo ""
 	@echo "Utility targets:"
 	@echo "  clean                  - Clean build artifacts"
