@@ -16,6 +16,9 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(GO_BUILD_FLAGS) -o $(BUILD_DIR)/spacelift-intent ./cmd/spacelift-intent
 
+build-legacy:
+	@mkdir -p $(BUILD_DIR)
+	GO_TAGS=legacy_plugin go build $(GO_BUILD_FLAGS) -tags=legacy_plugin -o $(BUILD_DIR)/spacelift-intent-legacy ./cmd/spacelift-intent
 
 # Clean build artifacts
 clean:
