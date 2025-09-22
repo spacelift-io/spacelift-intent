@@ -7,12 +7,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
 // TestRabbitMQBrokerLifecycle tests creating and deleting an AWS MQ RabbitMQ broker
 func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	// Load AWS credentials from .env.aws
-	credentials := loadAWSCredentials(t)
+	credentials := testhelper.LoadAWSCredentials(t)
 	if credentials == nil {
 		return // Test was skipped
 	}
@@ -22,8 +24,8 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 		t.Setenv(key, value)
 	}
 
-	// Use extended timeout for MQ broker operations (10 minutes)
-	th := NewTestHelperWithTimeout(t, 40*time.Minute, "/Users/michalgolinski/spacelift/intent/worktrees/spacelift-intent-cty/test/rabbitmq")
+	// Use extended timeout for MQ broker operations (40 minutes)
+	th := testhelper.NewTestHelperWithTimeout(t, 40*time.Minute, "/Users/michalgolinski/spacelift/intent/worktrees/spacelift-intent-cty/test/rabbitmq")
 	defer th.Cleanup()
 
 	const resourceID = "ultimate-rabbit"
