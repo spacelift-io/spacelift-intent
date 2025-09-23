@@ -143,6 +143,16 @@ func TestResourceLifecycleUpdate(t *testing.T) {
 	})
 	defer th.CleanupResource(resourceID)
 
+	// Verify initial state
+	initialState, err := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(initialState, err, "state-get")
+	initialContent := th.GetTextContent(initialState)
+	assert.Contains(t, initialContent, resourceID, "Initial state should contain resource ID")
+	assert.Contains(t, initialContent, "8", "Initial state should contain length: 8")
+
+	// Perform update
 	result, err := th.CallTool("lifecycle-resources-update", map[string]any{
 		"resource_id": resourceID,
 		"config": map[string]any{
@@ -154,6 +164,16 @@ func TestResourceLifecycleUpdate(t *testing.T) {
 
 	content := th.GetTextContent(result)
 	assert.Contains(t, content, resourceID, "Update result should contain resource ID")
+
+	// Verify updated state
+	updatedState, err := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(updatedState, err, "state-get")
+	updatedContent := th.GetTextContent(updatedState)
+	assert.Contains(t, updatedContent, resourceID, "Updated state should contain resource ID")
+	assert.Contains(t, updatedContent, "12", "Updated state should contain length: 12")
+	assert.Contains(t, updatedContent, "false", "Updated state should contain special: false")
 }
 
 // TestResourceLifecycleRefresh tests resource refresh
