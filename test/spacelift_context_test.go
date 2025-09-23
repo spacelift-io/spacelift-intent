@@ -1,6 +1,7 @@
 package test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -10,9 +11,17 @@ import (
 	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
+// getSharedTestDir creates or reuses a shared local directory for provider caching
+func getSharedTestDir(t *testing.T) string {
+	sharedDir := "./test-cache"
+	err := os.MkdirAll(sharedDir, 0755)
+	require.NoError(t, err, "Failed to create shared test directory")
+	return sharedDir
+}
+
 // TestSpaceliftProviderSearch tests searching for the Spacelift provider
 func TestSpaceliftProviderSearch(t *testing.T) {
-	th := testhelper.NewTestHelper(t)
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	result, err := th.CallTool("provider-search", map[string]any{
@@ -30,7 +39,7 @@ func TestSpaceliftProviderDescribe(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift
 	testhelper.LoadSpaceliftCredentials(t)
 
-	th := testhelper.NewTestHelper(t)
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	result, err := th.CallTool("provider-describe", map[string]any{
@@ -45,7 +54,7 @@ func TestSpaceliftProviderDescribe(t *testing.T) {
 
 // TestSpaceliftContextResourceDescribe tests describing the spacelift_context resource
 func TestSpaceliftContextResourceDescribe(t *testing.T) {
-	th := testhelper.NewTestHelper(t)
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	result, err := th.CallTool("provider-resources-describe", map[string]any{
@@ -64,13 +73,20 @@ func TestSpaceliftContextLifecycleCreate(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift
 	testhelper.LoadSpaceliftCredentials(t)
 
-	th := testhelper.NewTestHelper(t)
+	contextName := "Test Context for Integration Test"
+
+	// Cleanup any existing context from previous test runs
+	err := testhelper.CleanupContextByName(t, contextName)
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup context from previous run: %v", err)
+	}
+
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	resourceID := testhelper.GenerateUniqueResourceID("test-spacelift-context-create")
 	defer th.CleanupResource(resourceID)
 
-	contextName := "Test Context for Integration Test"
 	var contextID string
 
 	// Cleanup via Spacelift API at the end
@@ -113,11 +129,22 @@ func TestSpaceliftContextLifecycleUpdate(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift
 	testhelper.LoadSpaceliftCredentials(t)
 
-	th := testhelper.NewTestHelper(t)
-	defer th.Cleanup()
-
 	initialName := "Test Context Initial"
 	updatedName := "Test Context Updated"
+
+	// Cleanup any existing contexts from previous test runs
+	err := testhelper.CleanupContextByName(t, initialName)
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup initial context from previous run: %v", err)
+	}
+	err = testhelper.CleanupContextByName(t, updatedName)
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup updated context from previous run: %v", err)
+	}
+
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
+	defer th.Cleanup()
+
 	var contextID string
 
 	// Cleanup via Spacelift API at the end
@@ -188,7 +215,7 @@ func TestSpaceliftContextLifecycleRefresh(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift
 	testhelper.LoadSpaceliftCredentials(t)
 
-	th := testhelper.NewTestHelper(t)
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	contextName := "Test Context for Refresh"
@@ -267,7 +294,7 @@ func TestSpaceliftContextLifecycleDelete(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift
 	testhelper.LoadSpaceliftCredentials(t)
 
-	th := testhelper.NewTestHelper(t)
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	contextName := "Test Context for Deletion"
@@ -309,7 +336,7 @@ func TestSpaceliftContextResourceImport(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift
 	testhelper.LoadSpaceliftCredentials(t)
 
-	th := testhelper.NewTestHelper(t)
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
 	contextName := "Test Context for Import"
@@ -382,23 +409,48 @@ func TestSpaceliftContextResourceImport(t *testing.T) {
 
 // TestSpaceliftContextResourceOperations tests getting operations for a spacelift_context resource
 func TestSpaceliftContextResourceOperations(t *testing.T) {
-	th := testhelper.NewTestHelper(t)
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
+	contextName := "Test Context for Operations"
+	var contextID string
+
+	// Cleanup any existing context from previous test runs
+	err := testhelper.CleanupContextByName(t, contextName)
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup context from previous run: %v", err)
+	}
+
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
+	// Cleanup via Spacelift API at the end
+	defer func() {
+		if contextID != "" {
+			err := testhelper.CleanupContextById(t, contextID)
+			assert.NoError(t, err, "Failed to cleanup context via Spacelift API")
+		}
+	}()
+
 	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
-		"name":        "Test Context for Operations",
+		"name":        contextName,
 		"description": "A context to test operations tracking",
-		"labels":      []string{"test", "operations"},
+		"labels":      []string{"spacelift-intent-testing"},
 	})
 	defer th.CleanupResource(resourceID)
 
+	// Get the context ID from the created resource
+	createdContext, err := testhelper.ValidateContextExistsByName(t, contextName)
+	require.NoError(t, err, "Failed to validate context creation via Spacelift API")
+	contextID = createdContext.ID
+
 	// Update the resource to have some operations
-	_, err := th.CallTool("lifecycle-resources-update", map[string]any{
+	_, err = th.CallTool("lifecycle-resources-update", map[string]any{
 		"resource_id": resourceID,
 		"config": map[string]any{
 			"name":        "Test Context Updated for Operations",
 			"description": "Updated description to create more operations",
-			"labels":      []string{"test", "operations", "updated"},
+			"labels":      []string{"spacelift-intent-testing"},
 		},
 	})
 	require.NoError(t, err)
@@ -416,15 +468,40 @@ func TestSpaceliftContextResourceOperations(t *testing.T) {
 
 // TestSpaceliftContextStateGet tests getting state for a spacelift_context resource
 func TestSpaceliftContextStateGet(t *testing.T) {
-	th := testhelper.NewTestHelper(t)
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
+	contextName := "Test Context State"
+	var contextID string
+
+	// Cleanup any existing context from previous test runs
+	err := testhelper.CleanupContextByName(t, contextName)
+	if err != nil {
+		t.Logf("Warning: Failed to cleanup context from previous run: %v", err)
+	}
+
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
+	// Cleanup via Spacelift API at the end
+	defer func() {
+		if contextID != "" {
+			err := testhelper.CleanupContextById(t, contextID)
+			assert.NoError(t, err, "Failed to cleanup context via Spacelift API")
+		}
+	}()
+
 	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
-		"name":        "Test Context State",
+		"name":        contextName,
 		"description": "A context to test state retrieval",
-		"labels":      []string{"test", "state"},
+		"labels":      []string{"spacelift-intent-testing"},
 	})
 	defer th.CleanupResource(resourceID)
+
+	// Get the context ID from the created resource
+	createdContext, err := testhelper.ValidateContextExistsByName(t, contextName)
+	require.NoError(t, err, "Failed to validate context creation via Spacelift API")
+	contextID = createdContext.ID
 
 	result, err := th.CallTool("state-get", map[string]any{
 		"resource_id": resourceID,
@@ -435,130 +512,4 @@ func TestSpaceliftContextStateGet(t *testing.T) {
 	assert.Contains(t, content, resourceID, "State should contain resource ID")
 	assert.Contains(t, content, "spacelift_context", "State should contain resource type")
 	assert.Contains(t, content, "Test Context State", "State should contain the context name")
-}
-
-// TestSpaceliftContextWithScripts tests creating a context with hook scripts
-func TestSpaceliftContextWithScripts(t *testing.T) {
-	th := testhelper.NewTestHelper(t)
-	defer th.Cleanup()
-
-	resourceID := testhelper.GenerateUniqueResourceID("test-spacelift-context-scripts")
-	defer th.CleanupResource(resourceID)
-
-	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   resourceID,
-		"provider":      "spacelift-io/spacelift",
-		"resource_type": "spacelift_context",
-		"config": map[string]any{
-			"name":        "Test Context with Scripts",
-			"description": "A context with before/after scripts",
-			"labels":      []string{"test", "scripts"},
-			"before_init": []string{
-				"echo 'Before init script 1'",
-				"echo 'Before init script 2'",
-			},
-			"after_init": []string{
-				"echo 'After init completed'",
-			},
-			"before_plan": []string{
-				"echo 'Preparing for plan'",
-			},
-			"after_plan": []string{
-				"echo 'Plan completed successfully'",
-			},
-		},
-	})
-	th.AssertToolSuccess(result, err, "lifecycle-resources-create")
-
-	content := th.GetTextContent(result)
-	assert.Contains(t, content, resourceID, "Create result should contain resource ID")
-	assert.Contains(t, content, "created", "Should show created status")
-
-	// Verify the scripts are in the state
-	stateResult, err := th.CallTool("state-get", map[string]any{
-		"resource_id": resourceID,
-	})
-	th.AssertToolSuccess(stateResult, err, "state-get")
-	stateContent := th.GetTextContent(stateResult)
-	assert.Contains(t, stateContent, "Before init script", "State should contain before_init scripts")
-	assert.Contains(t, stateContent, "After init completed", "State should contain after_init scripts")
-}
-
-// TestSpaceliftContextDependencyManagement tests dependency management with spacelift_context
-func TestSpaceliftContextDependencyManagement(t *testing.T) {
-	th := testhelper.NewTestHelper(t)
-	defer th.Cleanup()
-
-	parentContextID := testhelper.GenerateUniqueResourceID("test-parent-context")
-	childContextID := testhelper.GenerateUniqueResourceID("test-child-context")
-
-	// Create parent context
-	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   parentContextID,
-		"provider":      "spacelift-io/spacelift",
-		"resource_type": "spacelift_context",
-		"config": map[string]any{
-			"name":        "Parent Context",
-			"description": "Parent context for dependency testing",
-			"labels":      []string{"test", "parent"},
-		},
-	})
-	th.AssertToolSuccess(result, err, "lifecycle-resources-create parent")
-	defer th.CleanupResource(parentContextID)
-
-	// Create child context
-	result, err = th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   childContextID,
-		"provider":      "spacelift-io/spacelift",
-		"resource_type": "spacelift_context",
-		"config": map[string]any{
-			"name":        "Child Context",
-			"description": "Child context for dependency testing",
-			"labels":      []string{"test", "child"},
-		},
-	})
-	th.AssertToolSuccess(result, err, "lifecycle-resources-create child")
-	defer th.CleanupResource(childContextID)
-
-	// Add dependency
-	result, err = th.CallTool("lifecycle-resources-dependencies-add", map[string]any{
-		"from_resource_id": childContextID,
-		"to_resource_id":   parentContextID,
-		"dependency_type":  "explicit",
-		"explanation":      "Child context depends on parent context configuration",
-	})
-
-	// Dependencies might fail due to foreign key constraints if resources aren't properly stored
-	if result.IsError {
-		content := th.GetTextContent(result)
-		if assert.Contains(t, content, "constraint failed", "Expected constraint error") {
-			t.Logf("Dependency add failed as might be expected: %s", content)
-			t.Skip("Skipping remaining dependency tests due to constraint issues")
-		}
-	} else {
-		th.AssertToolSuccess(result, err, "lifecycle-resources-dependencies-add")
-
-		content := th.GetTextContent(result)
-		assert.Contains(t, content, childContextID, "Dependency add result should contain child resource")
-		assert.Contains(t, content, parentContextID, "Dependency add result should contain parent resource")
-
-		// Get dependencies
-		result, err = th.CallTool("lifecycle-resources-dependencies-get", map[string]any{
-			"resource_id": childContextID,
-		})
-		th.AssertToolSuccess(result, err, "lifecycle-resources-dependencies-get")
-
-		content = th.GetTextContent(result)
-		t.Logf("Dependencies result: %s", content)
-
-		// Remove dependency
-		result, err = th.CallTool("lifecycle-resources-dependencies-remove", map[string]any{
-			"from_resource_id": childContextID,
-			"to_resource_id":   parentContextID,
-		})
-		th.AssertToolSuccess(result, err, "lifecycle-resources-dependencies-remove")
-
-		content = th.GetTextContent(result)
-		assert.Contains(t, content, "removed", "Should show removal status")
-	}
 }

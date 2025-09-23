@@ -32,11 +32,16 @@ type TestHelper struct {
 }
 
 // NewTestHelper creates a new test helper with server setup
-func NewTestHelper(t *testing.T) *TestHelper {
+func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 
-	// Create temporary directories
-	tempDir := t.TempDir()
+	// Create temporary or custom directories
+	var tempDir string
+	if len(optionalDirs) > 0 && optionalDirs[0] != "" {
+		tempDir = optionalDirs[0]
+	} else {
+		tempDir = t.TempDir()
+	}
 	dbDir := filepath.Join(tempDir, "db")
 	err := os.MkdirAll(dbDir, 0755)
 	require.NoError(t, err, "Failed to create database directory")
@@ -170,7 +175,12 @@ func (th *TestHelper) CallTool(toolName string, args map[string]any) (*mcp.CallT
 // AssertToolSuccess asserts that a tool call was successful
 func (th *TestHelper) AssertToolSuccess(result *mcp.CallToolResult, err error, toolName string) {
 	require.NoError(th.t, err, "Tool %s should not return error", toolName)
-	require.False(th.t, result.IsError, "Tool %s should not return error result", toolName)
+
+	if result.IsError {
+		// Get the full error content for debugging
+		errorContent := th.GetTextContent(result)
+		require.False(th.t, result.IsError, "Tool %s failed with error: %s", toolName, errorContent)
+	}
 }
 
 // GetTextContent extracts text content from tool result

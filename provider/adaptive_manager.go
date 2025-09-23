@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"log"
 
 	"github.com/spacelift-io/spacelift-intent/provider/legacy"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -19,8 +20,10 @@ func NewAdaptiveManager(tmpDir string, registry types.RegistryClient) types.Prov
 	// Use build tag to determine which implementation to use
 	if useLegacyProvider {
 		adapter = legacy.NewManager(tmpDir, registry)
+		log.Printf("[INFO] Using legacy provider implementation for %s", tmpDir)
 	} else {
 		adapter = NewOpenTofuAdapter(tmpDir, registry)
+		log.Printf("[INFO] Using opentofu provider implementation for %s", tmpDir)
 	}
 
 	return &AdaptiveManager{
