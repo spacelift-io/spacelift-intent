@@ -12,7 +12,6 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/mcptest"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/spacelift-io/spacelift-intent/provider"
@@ -171,7 +170,7 @@ func (th *TestHelper) CallTool(toolName string, args map[string]any) (*mcp.CallT
 // AssertToolSuccess asserts that a tool call was successful
 func (th *TestHelper) AssertToolSuccess(result *mcp.CallToolResult, err error, toolName string) {
 	require.NoError(th.t, err, "Tool %s should not return error", toolName)
-	assert.False(th.t, result.IsError, "Tool %s should not return error result", toolName)
+	require.False(th.t, result.IsError, "Tool %s should not return error result", toolName)
 }
 
 // GetTextContent extracts text content from tool result

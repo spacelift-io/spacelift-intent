@@ -60,20 +60,35 @@ func TestSpaceliftContextResourceDescribe(t *testing.T) {
 
 // TestSpaceliftContextLifecycleCreate tests creating a spacelift_context resource
 func TestSpaceliftContextLifecycleCreate(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
 	resourceID := testhelper.GenerateUniqueResourceID("test-spacelift-context-create")
 	defer th.CleanupResource(resourceID)
 
+	contextName := "Test Context for Integration Test"
+	var contextID string
+
+	// Cleanup via Spacelift API at the end
+	defer func() {
+		if contextID != "" {
+			if err := testhelper.CleanupContextById(t, contextID); err != nil {
+				t.Errorf("Failed to cleanup context via Spacelift API: %v", err)
+			}
+		}
+	}()
+
 	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
 		"resource_id":   resourceID,
 		"provider":      "spacelift-io/spacelift",
 		"resource_type": "spacelift_context",
 		"config": map[string]any{
-			"name":        "Test Context for Integration Test",
+			"name":        contextName,
 			"description": "A context created during integration testing",
-			"labels":      []string{"test", "integration"},
+			"labels":      []string{"spacelift-intent-testing"},
 		},
 	})
 	th.AssertToolSuccess(result, err, "lifecycle-resources-create")
@@ -81,6 +96,18 @@ func TestSpaceliftContextLifecycleCreate(t *testing.T) {
 	content := th.GetTextContent(result)
 	assert.Contains(t, content, resourceID, "Create result should contain resource ID")
 	assert.Contains(t, content, "created", "Should show created status")
+
+	// Validate that the context actually exists via Spacelift API
+	context, err := testhelper.ValidateContextExistsByName(t, contextName)
+	if err != nil {
+		t.Errorf("Failed to validate context creation via Spacelift API: %v", err)
+	} else {
+		contextID = context.ID // Store for cleanup
+		assert.Equal(t, contextName, context.Name, "Context name should match")
+		assert.NotEmpty(t, context.ID, "Context should have an ID")
+		assert.Contains(t, context.Labels, "spacelift-intent-testing", "Context should have 'spacelift-intent-testing' label")
+		t.Logf("✅ Successfully validated context creation via Spacelift API: %s (ID: %s)", context.Name, context.ID)
+	}
 }
 
 // TestSpaceliftContextLifecycleUpdate tests updating a spacelift_context resource
