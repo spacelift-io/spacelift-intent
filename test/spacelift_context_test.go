@@ -75,9 +75,8 @@ func TestSpaceliftContextLifecycleCreate(t *testing.T) {
 	// Cleanup via Spacelift API at the end
 	defer func() {
 		if contextID != "" {
-			if err := testhelper.CleanupContextById(t, contextID); err != nil {
-				t.Errorf("Failed to cleanup context via Spacelift API: %v", err)
-			}
+			err := testhelper.CleanupContextById(t, contextID)
+			assert.NoError(t, err, "Failed to cleanup context via Spacelift API")
 		}
 	}()
 
@@ -99,15 +98,13 @@ func TestSpaceliftContextLifecycleCreate(t *testing.T) {
 
 	// Validate that the context actually exists via Spacelift API
 	context, err := testhelper.ValidateContextExistsByName(t, contextName)
-	if err != nil {
-		t.Errorf("Failed to validate context creation via Spacelift API: %v", err)
-	} else {
-		contextID = context.ID // Store for cleanup
-		assert.Equal(t, contextName, context.Name, "Context name should match")
-		assert.NotEmpty(t, context.ID, "Context should have an ID")
-		assert.Contains(t, context.Labels, "spacelift-intent-testing", "Context should have 'spacelift-intent-testing' label")
-		t.Logf("✅ Successfully validated context creation via Spacelift API: %s (ID: %s)", context.Name, context.ID)
-	}
+	require.NoError(t, err, "Failed to validate context creation via Spacelift API")
+
+	contextID = context.ID // Store for cleanup
+	assert.Equal(t, contextName, context.Name, "Context name should match")
+	assert.NotEmpty(t, context.ID, "Context should have an ID")
+	assert.Contains(t, context.Labels, "spacelift-intent-testing", "Context should have 'spacelift-intent-testing' label")
+	t.Logf("✅ Successfully validated context creation via Spacelift API: %s (ID: %s)", context.Name, context.ID)
 }
 
 // TestSpaceliftContextLifecycleUpdate tests updating a spacelift_context resource
