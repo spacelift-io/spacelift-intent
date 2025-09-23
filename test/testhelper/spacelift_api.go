@@ -516,3 +516,132 @@ func UpdateContextDescription(t *testing.T, contextID, newDescription string) er
 	t.Logf("Successfully updated context description via Spacelift API: ID=%s", contextID)
 	return nil
 }
+
+// CreateContextViaAPI creates a context directly via Spacelift API (bypassing our tools)
+func CreateContextViaAPI(t *testing.T, name, description string) (*SpaceliftContext, error) {
+	// Get required environment variables
+	endpoint := os.Getenv("SPACELIFT_API_KEY_ENDPOINT")
+	keyID := os.Getenv("SPACELIFT_API_KEY_ID")
+	keySecret := os.Getenv("SPACELIFT_API_KEY_SECRET")
+
+	if endpoint == "" || keyID == "" || keySecret == "" {
+		return nil, fmt.Errorf("missing required Spacelift credentials (SPACELIFT_API_KEY_ENDPOINT, SPACELIFT_API_KEY_ID, SPACELIFT_API_KEY_SECRET)")
+	}
+
+	// Ensure endpoint has /graphql suffix
+	if !strings.HasSuffix(endpoint, "/graphql") {
+		endpoint = endpoint + "/graphql"
+	}
+
+	// Exchange API key for JWT token
+	jwtToken, err := getJWTToken(endpoint, keyID, keySecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get JWT token: %v", err)
+	}
+
+	// Create GraphQL mutation to create context
+	mutation := `
+		mutation($name: String!, $description: String, $labels: [String!]) {
+			contextCreate(name: $name, description: $description, labels: $labels) {
+				id
+				name
+				description
+				labels
+			}
+		}
+	`
+
+	// Prepare GraphQL request
+	req := GraphQLRequest{
+		Query: mutation,
+		Variables: map[string]interface{}{
+			"name":        name,
+			"description": description,
+			"labels":      []string{"spacelift-intent-testing"},
+		},
+	}
+
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal GraphQL request: %v", err)
+	}
+
+	// Create HTTP request
+	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	// Set headers with JWT token
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
+
+	// Execute request
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute GraphQL request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var gqlResp GraphQLResponse
+	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
+		return nil, fmt.Errorf("failed to decode GraphQL response: %v", err)
+	}
+
+	// Check for GraphQL errors
+	if len(gqlResp.Errors) > 0 {
+		return nil, fmt.Errorf("GraphQL errors during creation: %s", gqlResp.Errors[0].Message)
+	}
+
+	// Validate creation succeeded
+	createdContextData, ok := gqlResp.Data["contextCreate"]
+	if !ok || createdContextData == nil {
+		return nil, fmt.Errorf("context creation failed: no context returned in response. Response data: %+v", gqlResp.Data)
+	}
+
+	// Parse the created context data
+	contextMap, ok := createdContextData.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid context data format in response")
+	}
+
+	contextID, ok := contextMap["id"].(string)
+	if !ok || contextID == "" {
+		return nil, fmt.Errorf("missing or invalid context ID in response")
+	}
+
+	contextName, ok := contextMap["name"].(string)
+	if !ok || contextName == "" {
+		return nil, fmt.Errorf("missing or invalid context name in response")
+	}
+
+	var contextDescription *string
+	if desc, exists := contextMap["description"]; exists && desc != nil {
+		if descStr, ok := desc.(string); ok {
+			contextDescription = &descStr
+		}
+	}
+
+	var contextLabels []string
+	if labels, exists := contextMap["labels"]; exists && labels != nil {
+		if labelList, ok := labels.([]interface{}); ok {
+			for _, label := range labelList {
+				if labelStr, ok := label.(string); ok {
+					contextLabels = append(contextLabels, labelStr)
+				}
+			}
+		}
+	}
+
+	context := &SpaceliftContext{
+		ID:          contextID,
+		Name:        contextName,
+		Description: contextDescription,
+		Labels:      contextLabels,
+	}
+
+	t.Logf("Successfully created context via Spacelift API: ID=%s, Name=%s", context.ID, context.Name)
+	return context, nil
+}

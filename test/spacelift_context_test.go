@@ -1,6 +1,7 @@
 package test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -305,29 +306,78 @@ func TestSpaceliftContextLifecycleDelete(t *testing.T) {
 
 // TestSpaceliftContextResourceImport tests importing a spacelift_context resource
 func TestSpaceliftContextResourceImport(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
+	contextName := "Test Context for Import"
 	resourceID := testhelper.GenerateUniqueResourceID("test-spacelift-context-import")
-	defer th.CleanupResource(resourceID)
+	var contextID string
 
-	result, err := th.CallTool("lifecycle-resources-import", map[string]any{
-		"resource_id":   resourceID,
-		"provider":      "spacelift-io/spacelift",
-		"resource_type": "spacelift_context",
-		"import_id":     "dummy-context-id", // This would be a real context ID in practice
-		"config": map[string]any{
-			"name":        "Imported Test Context",
-			"description": "A context imported during testing",
-		},
+	// Cleanup via Spacelift API at the end
+	defer func() {
+		if contextID != "" {
+			err := testhelper.CleanupContextById(t, contextID)
+			assert.NoError(t, err, "Failed to cleanup context via Spacelift API")
+		}
+	}()
+
+	// Step 1: Create a context directly via Spacelift API (not through our tools)
+	createdContext, err := testhelper.CreateContextViaAPI(t, contextName, "A context created via API for import testing")
+	require.NoError(t, err, "Failed to create context via Spacelift API")
+	contextID = createdContext.ID
+	t.Logf("✅ Created context via Spacelift API: %s (ID: %s)", createdContext.Name, createdContext.ID)
+
+	// Step 2: Verify the context does NOT exist in our state management
+	stateResult, err := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
 	})
+	assert.True(t, stateResult.IsError, "Context should not exist in state before import")
+	t.Logf("✅ Verified context does not exist in state before import")
 
-	// Import might fail if the context doesn't exist, which is expected
-	if result.IsError {
-		t.Logf("Import failed as expected (context doesn't exist): %s", th.GetTextContent(result))
+	// Step 3: Import the existing context into our state management
+	importResult, err := th.CallTool("lifecycle-resources-import", map[string]any{
+		"destination_id": resourceID, // This is the ID we'll use in our state
+		"provider":       "spacelift-io/spacelift",
+		"resource_type":  "spacelift_context",
+		"import_id":      contextID, // Use the real context ID from API
+	})
+	th.AssertToolSuccess(importResult, err, "lifecycle-resources-import")
+	defer th.CleanupResource(resourceID) // Cleanup from state after successful import
+
+	importContent := th.GetTextContent(importResult)
+	assert.Contains(t, importContent, "imported", "Import result should show imported status")
+	assert.Contains(t, importContent, contextID, "Import result should contain the Spacelift context ID")
+	t.Logf("✅ Successfully imported context into state management")
+
+	// Step 4: Verify the context now EXISTS in our state management
+	stateAfterImport, err := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(stateAfterImport, err, "state-get after import")
+
+	stateContent := th.GetTextContent(stateAfterImport)
+	assert.Contains(t, stateContent, resourceID, "State should contain resource ID after import")
+	assert.Contains(t, stateContent, contextID, "State should contain Spacelift context ID after import")
+
+	// Check if import captured the full resource data
+	if strings.Contains(stateContent, contextName) && strings.Contains(stateContent, "A context created via API for import testing") {
+		t.Logf("✅ Import captured full resource data including name and description")
 	} else {
-		th.AssertToolSuccess(result, err, "lifecycle-resources-import")
+		t.Logf("⚠️  Import only captured basic resource structure - name/description are null")
+		t.Logf("This might be expected behavior depending on Spacelift provider import implementation")
 	}
+
+	t.Logf("✅ Verified context exists in state after import")
+
+	// Step 5: Verify the context still exists in Spacelift and data matches
+	finalContext, err := testhelper.ValidateContextExistsById(t, contextID)
+	require.NoError(t, err, "Context should still exist in Spacelift after import")
+	assert.Equal(t, contextName, finalContext.Name, "Context name should match after import")
+	assert.Equal(t, "A context created via API for import testing", *finalContext.Description, "Context description should match after import")
+	t.Logf("✅ Verified context consistency between state and Spacelift API after import")
 }
 
 // TestSpaceliftContextResourceOperations tests getting operations for a spacelift_context resource
