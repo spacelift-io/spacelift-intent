@@ -109,15 +109,37 @@ func TestSpaceliftContextLifecycleCreate(t *testing.T) {
 
 // TestSpaceliftContextLifecycleUpdate tests updating a spacelift_context resource
 func TestSpaceliftContextLifecycleUpdate(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
+	initialName := "Test Context Initial"
+	updatedName := "Test Context Updated"
+	var contextID string
+
+	// Cleanup via Spacelift API at the end
+	defer func() {
+		if contextID != "" {
+			err := testhelper.CleanupContextById(t, contextID)
+			assert.NoError(t, err, "Failed to cleanup context via Spacelift API")
+		}
+	}()
+
 	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
-		"name":        "Test Context Initial",
+		"name":        initialName,
 		"description": "Initial context description",
-		"labels":      []string{"test"},
+		"labels":      []string{"spacelift-intent-testing"},
 	})
 	defer th.CleanupResource(resourceID)
+
+	// Verify initial context via API
+	initialContext, err := testhelper.ValidateContextExistsByName(t, initialName)
+	require.NoError(t, err, "Failed to validate initial context creation via Spacelift API")
+	contextID = initialContext.ID
+	assert.Equal(t, initialName, initialContext.Name, "Initial context name should match")
+	t.Logf("✅ Initial context validated via API: %s (ID: %s)", initialContext.Name, initialContext.ID)
 
 	// Verify initial state
 	initialState, err := th.CallTool("state-get", map[string]any{
@@ -126,15 +148,15 @@ func TestSpaceliftContextLifecycleUpdate(t *testing.T) {
 	th.AssertToolSuccess(initialState, err, "state-get")
 	initialContent := th.GetTextContent(initialState)
 	assert.Contains(t, initialContent, resourceID, "Initial state should contain resource ID")
-	assert.Contains(t, initialContent, "Test Context Initial", "Initial state should contain original name")
+	assert.Contains(t, initialContent, initialName, "Initial state should contain original name")
 
 	// Perform update
 	result, err := th.CallTool("lifecycle-resources-update", map[string]any{
 		"resource_id": resourceID,
 		"config": map[string]any{
-			"name":        "Test Context Updated",
+			"name":        updatedName,
 			"description": "Updated context description with more details",
-			"labels":      []string{"test", "updated", "integration"},
+			"labels":      []string{"spacelift-intent-testing"},
 		},
 	})
 	th.AssertToolSuccess(result, err, "lifecycle-resources-update")
@@ -149,8 +171,15 @@ func TestSpaceliftContextLifecycleUpdate(t *testing.T) {
 	th.AssertToolSuccess(updatedState, err, "state-get")
 	updatedContent := th.GetTextContent(updatedState)
 	assert.Contains(t, updatedContent, resourceID, "Updated state should contain resource ID")
-	assert.Contains(t, updatedContent, "Test Context Updated", "Updated state should contain new name")
+	assert.Contains(t, updatedContent, updatedName, "Updated state should contain new name")
 	assert.Contains(t, updatedContent, "Updated context description", "Updated state should contain new description")
+
+	// Verify the update was applied via Spacelift API
+	updatedContext, err := testhelper.ValidateContextExistsByName(t, updatedName)
+	require.NoError(t, err, "Failed to validate context update via Spacelift API")
+	assert.Equal(t, updatedName, updatedContext.Name, "Updated context name should match")
+	assert.Equal(t, contextID, updatedContext.ID, "Context ID should remain the same after update")
+	t.Logf("✅ Successfully validated context update via Spacelift API: %s (ID: %s)", updatedContext.Name, updatedContext.ID)
 }
 
 // TestSpaceliftContextLifecycleRefresh tests refreshing a spacelift_context resource
