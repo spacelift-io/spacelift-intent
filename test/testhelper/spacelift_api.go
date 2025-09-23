@@ -423,3 +423,96 @@ func CleanupContextById(t *testing.T, contextID string) error {
 
 	return fmt.Errorf("context cleanup validation failed: context with ID '%s' still exists after deletion", contextID)
 }
+
+// UpdateContextDescription updates a context's description via Spacelift API
+func UpdateContextDescription(t *testing.T, contextID, newDescription string) error {
+	// Get required environment variables
+	endpoint := os.Getenv("SPACELIFT_API_KEY_ENDPOINT")
+	keyID := os.Getenv("SPACELIFT_API_KEY_ID")
+	keySecret := os.Getenv("SPACELIFT_API_KEY_SECRET")
+
+	if endpoint == "" || keyID == "" || keySecret == "" {
+		return fmt.Errorf("missing required Spacelift credentials (SPACELIFT_API_KEY_ENDPOINT, SPACELIFT_API_KEY_ID, SPACELIFT_API_KEY_SECRET)")
+	}
+
+	// Ensure endpoint has /graphql suffix
+	if !strings.HasSuffix(endpoint, "/graphql") {
+		endpoint = endpoint + "/graphql"
+	}
+
+	// Exchange API key for JWT token
+	jwtToken, err := getJWTToken(endpoint, keyID, keySecret)
+	if err != nil {
+		return fmt.Errorf("failed to get JWT token: %v", err)
+	}
+
+	// Create GraphQL mutation to update context description
+	mutation := `
+		mutation($id: ID!, $name: String!, $description: String) {
+			contextUpdate(id: $id, name: $name, description: $description) {
+				id
+				name
+				description
+			}
+		}
+	`
+
+	// First get the current context to get its name (required for update)
+	currentContext, err := ValidateContextExistsById(t, contextID)
+	if err != nil {
+		return fmt.Errorf("failed to get current context: %v", err)
+	}
+
+	// Prepare GraphQL request
+	req := GraphQLRequest{
+		Query: mutation,
+		Variables: map[string]interface{}{
+			"id":          contextID,
+			"name":        currentContext.Name,
+			"description": newDescription,
+		},
+	}
+
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal GraphQL request: %v", err)
+	}
+
+	// Create HTTP request
+	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	// Set headers with JWT token
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", jwtToken))
+
+	// Execute request
+	client := &http.Client{}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to execute GraphQL request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Parse response
+	var gqlResp GraphQLResponse
+	if err := json.NewDecoder(resp.Body).Decode(&gqlResp); err != nil {
+		return fmt.Errorf("failed to decode GraphQL response: %v", err)
+	}
+
+	// Check for GraphQL errors
+	if len(gqlResp.Errors) > 0 {
+		return fmt.Errorf("GraphQL errors during update: %s", gqlResp.Errors[0].Message)
+	}
+
+	// Validate update succeeded
+	updatedContext, ok := gqlResp.Data["contextUpdate"]
+	if !ok || updatedContext == nil {
+		return fmt.Errorf("context update failed: no context returned in response. Response data: %+v", gqlResp.Data)
+	}
+
+	t.Logf("Successfully updated context description via Spacelift API: ID=%s", contextID)
+	return nil
+}

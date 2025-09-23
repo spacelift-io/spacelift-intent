@@ -184,16 +184,57 @@ func TestSpaceliftContextLifecycleUpdate(t *testing.T) {
 
 // TestSpaceliftContextLifecycleRefresh tests refreshing a spacelift_context resource
 func TestSpaceliftContextLifecycleRefresh(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
+	contextName := "Test Context for Refresh"
+	var contextID string
+
+	// Cleanup via Spacelift API at the end
+	defer func() {
+		if contextID != "" {
+			err := testhelper.CleanupContextById(t, contextID)
+			assert.NoError(t, err, "Failed to cleanup context via Spacelift API")
+		}
+	}()
+
 	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
-		"name":        "Test Context for Refresh",
+		"name":        contextName,
 		"description": "A context to test refresh functionality",
-		"labels":      []string{"test", "refresh"},
+		"labels":      []string{"spacelift-intent-testing"},
 	})
 	defer th.CleanupResource(resourceID)
 
+	// Verify initial context via API and capture context ID
+	initialContext, err := testhelper.ValidateContextExistsByName(t, contextName)
+	require.NoError(t, err, "Failed to validate initial context creation via Spacelift API")
+	contextID = initialContext.ID
+	t.Logf("✅ Initial context validated via API: %s (ID: %s)", initialContext.Name, initialContext.ID)
+
+	// Get initial state to verify before changes
+	initialState, err := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(initialState, err, "state-get initial")
+	initialStateContent := th.GetTextContent(initialState)
+	assert.Contains(t, initialStateContent, "A context to test refresh functionality", "Initial state should contain original description")
+
+	// Update the context externally via Spacelift API to simulate drift
+	updatedDescription := "Description updated externally via API - should be detected by refresh"
+	err = testhelper.UpdateContextDescription(t, contextID, updatedDescription)
+	require.NoError(t, err, "Failed to update context via Spacelift API")
+	t.Logf("✅ Updated context description via Spacelift API")
+
+	// Verify the external change was applied via API
+	externallyUpdatedContext, err := testhelper.ValidateContextExistsById(t, contextID)
+	require.NoError(t, err, "Failed to validate externally updated context via Spacelift API")
+	assert.Equal(t, updatedDescription, *externallyUpdatedContext.Description, "Context description should be updated via API")
+	t.Logf("✅ Validated external update via Spacelift API: %s", *externallyUpdatedContext.Description)
+
+	// Now refresh the resource - this should detect the external changes
 	result, err := th.CallTool("lifecycle-resources-refresh", map[string]any{
 		"resource_id": resourceID,
 	})
@@ -201,19 +242,52 @@ func TestSpaceliftContextLifecycleRefresh(t *testing.T) {
 
 	content := th.GetTextContent(result)
 	assert.Contains(t, content, resourceID, "Refresh result should contain resource ID")
+
+	// Get state after refresh to verify it detected the external changes
+	refreshedState, err := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(refreshedState, err, "state-get after refresh")
+	refreshedStateContent := th.GetTextContent(refreshedState)
+	assert.Contains(t, refreshedStateContent, updatedDescription, "Refreshed state should contain the externally updated description")
+	assert.NotContains(t, refreshedStateContent, "A context to test refresh functionality", "Refreshed state should not contain the old description")
+
+	// Final verification via API
+	finalContext, err := testhelper.ValidateContextExistsById(t, contextID)
+	require.NoError(t, err, "Failed to validate context exists after refresh via Spacelift API")
+	assert.Equal(t, contextName, finalContext.Name, "Context name should remain unchanged after refresh")
+	assert.Equal(t, contextID, finalContext.ID, "Context ID should remain unchanged after refresh")
+	assert.Equal(t, updatedDescription, *finalContext.Description, "Context description should reflect the external update")
+	t.Logf("✅ Successfully validated context drift detection and refresh: %s (ID: %s)", finalContext.Name, finalContext.ID)
 }
 
 // TestSpaceliftContextLifecycleDelete tests deleting a spacelift_context resource
 func TestSpaceliftContextLifecycleDelete(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
+	contextName := "Test Context for Deletion"
+	var contextID string
+
+	// Create the context resource
 	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
-		"name":        "Test Context for Deletion",
+		"name":        contextName,
 		"description": "A context that will be deleted",
-		"labels":      []string{"test", "delete"},
+		"labels":      []string{"spacelift-intent-testing"},
 	})
 
+	// Verify the context was created and exists in Spacelift
+	createdContext, err := testhelper.ValidateContextExistsByName(t, contextName)
+	require.NoError(t, err, "Failed to validate context creation via Spacelift API")
+	contextID = createdContext.ID
+	assert.Equal(t, contextName, createdContext.Name, "Created context name should match")
+	assert.Equal(t, "A context that will be deleted", *createdContext.Description, "Created context description should match")
+	t.Logf("✅ Context created and validated via API: %s (ID: %s)", createdContext.Name, createdContext.ID)
+
+	// Delete the context via the tool
 	result, err := th.CallTool("lifecycle-resources-delete", map[string]any{
 		"resource_id": resourceID,
 	})
@@ -222,6 +296,11 @@ func TestSpaceliftContextLifecycleDelete(t *testing.T) {
 	content := th.GetTextContent(result)
 	assert.Contains(t, content, resourceID, "Delete result should contain resource ID")
 	assert.Contains(t, content, "deleted", "Should show deleted status")
+
+	// Verify the context no longer exists in Spacelift
+	_, err = testhelper.ValidateContextExistsById(t, contextID)
+	assert.Error(t, err, "Context should not exist after deletion")
+	t.Logf("✅ Verified context deletion: context with ID '%s' no longer exists in Spacelift", contextID)
 }
 
 // TestSpaceliftContextResourceImport tests importing a spacelift_context resource
