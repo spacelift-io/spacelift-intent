@@ -647,15 +647,90 @@ func (a *OpenTofuAdapter) GetProviderVersion(ctx context.Context, providerName s
 
 // UpdateResource updates an existing resource
 func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerName, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
-	// First plan the change
-	plannedState, err := a.PlanResource(ctx, providerName, resourceType, &currentState, newConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to plan resource update: %w", err)
+	// Ensure provider is loaded
+	if err := a.LoadProvider(ctx, providerName); err != nil {
+		return nil, err
 	}
 
-	// For now, return the planned state since CreateResource is not fully implemented
-	// TODO: Implement proper apply logic when CreateResource is implemented
-	return plannedState, nil
+	provider := a.providers[providerName]
+
+	// Get resource schema
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
+	}
+
+	// Convert opentofu-providers schema to proper cty.Type
+	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+
+	// Convert current state to cty.Value
+	currentStateCty, err := a.converter.MapToCtyValue(currentState, resourceType_cty)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert current state: %w", err)
+	}
+	priorState := providerschema.NewDynamicValue(currentStateCty, resourceType_cty)
+
+	// Convert new config to cty.Value
+	configCty, err := a.converter.MapToCtyValue(newConfig, resourceType_cty)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert config: %w", err)
+	}
+	configDV := providerschema.NewDynamicValue(configCty, resourceType_cty)
+
+	// Plan the update
+	planReq := &providerops.PlanManagedResourceChangeRequest{
+		ResourceType:     resourceType,
+		PriorState:       priorState,
+		Config:           configDV,
+		ProposedNewState: configDV, // Use config as proposed state for simplicity
+	}
+
+	planResp, err := provider.PlanManagedResourceChange(ctx, planReq)
+	if err != nil {
+		return nil, fmt.Errorf("plan update failed: %w", err)
+	}
+
+	if planResp.Diagnostics().HasErrors() {
+		return nil, fmt.Errorf("plan update failed: %s", a.formatDiagnostics(planResp.Diagnostics()))
+	}
+
+	// Convert planned state from DynamicValueOut to DynamicValueIn
+	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode planned state: %w", err)
+	}
+	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceType_cty)
+
+	// Now apply the update
+	applyReq := &providerops.ApplyManagedResourceChangeRequest{
+		ResourceType:            resourceType,
+		PriorState:              priorState,
+		Config:                  configDV,
+		PlannedNewState:         plannedStateDV,
+		PlannedProviderInternal: planResp.PlannedProviderInternal(),
+	}
+
+	applyResp, err := provider.ApplyManagedResourceChange(ctx, applyReq)
+	if err != nil {
+		return nil, fmt.Errorf("apply update failed: %w", err)
+	}
+
+	if applyResp.Diagnostics().HasErrors() {
+		return nil, fmt.Errorf("apply update failed: %s", a.formatDiagnostics(applyResp.Diagnostics()))
+	}
+
+	// Convert final state back to map
+	finalStateCty, err := applyResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode final state: %w", err)
+	}
+
+	finalStateMap, err := a.converter.CtyValueToMap(finalStateCty)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert final state to map: %w", err)
+	}
+
+	return finalStateMap, nil
 }
 
 // ListResources lists all available resource types for a provider

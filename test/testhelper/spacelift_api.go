@@ -400,8 +400,15 @@ func CleanupContextById(t *testing.T, contextID string) error {
 
 	// Validate deletion succeeded
 	deletedContext, ok := gqlResp.Data["contextDelete"]
-	if !ok || deletedContext == nil {
-		return fmt.Errorf("context deletion failed: no context returned in response")
+	if !ok {
+		return fmt.Errorf("context deletion failed: no 'contextDelete' field in response. Response data: %+v", gqlResp.Data)
+	}
+
+	// Spacelift returns null for successfully deleted contexts (which is expected)
+	if deletedContext == nil {
+		t.Logf("Context deletion successful (null response indicates deletion)")
+	} else {
+		t.Logf("Context deletion response: %+v", deletedContext)
 	}
 
 	t.Logf("Successfully deleted context via Spacelift API: ID=%s", contextID)
