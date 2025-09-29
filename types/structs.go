@@ -113,6 +113,8 @@ type ResourceOperationsArgs struct {
 	ResourceID   *string `json:"resource_id"`
 	ResourceType *string `json:"resource_type"`
 	Provider     *string `json:"provider"`
+	Limit        *int    `json:"limit"`
+	Offset       int     `json:"offset"`
 }
 
 // ProviderSchema represents the schema information for a provider

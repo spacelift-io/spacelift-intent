@@ -537,6 +537,22 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 		query += " AND provider = ?"
 		vars = append(vars, *args.Provider)
 	}
+	query += " ORDER BY datetime(created_at) DESC"
+
+	if args.Limit != nil {
+		if *args.Limit < 0 {
+			return nil, fmt.Errorf("limit must be non-negative")
+		}
+		query += " LIMIT ?"
+		vars = append(vars, *args.Limit)
+		if args.Offset > 0 {
+			query += " OFFSET ?"
+			vars = append(vars, args.Offset)
+		}
+	} else if args.Offset > 0 {
+		query += " LIMIT -1 OFFSET ?"
+		vars = append(vars, args.Offset)
+	}
 
 	rows, err := s.db.QueryContext(ctx, query, vars...)
 	if err != nil {
