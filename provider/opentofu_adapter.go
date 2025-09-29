@@ -571,15 +571,40 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerName, reso
 		return nil, fmt.Errorf("no resources were imported")
 	}
 
-	// Convert first imported resource state back to map
-	stateCty, err := firstResource.State().AsCtyValue(resourceType_cty)
+	// Now read the resource to get the complete current state, following the same pattern as legacy manager
+	// This ensures we capture the full resource data, not just what import returned
+
+	// First convert the imported state from DynamicValueOut to DynamicValueIn
+	importedStateCty, err := firstResource.State().AsCtyValue(resourceType_cty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode imported state: %w", err)
+	}
+	importedStateDV := providerschema.NewDynamicValue(importedStateCty, resourceType_cty)
+
+	readReq := &providerops.ReadManagedResourceRequest{
+		ResourceType:     resourceType,
+		CurrentState:     importedStateDV,
+		ProviderInternal: firstResource.ProviderInternal(),
+	}
+
+	readResp, err := provider.ReadManagedResource(ctx, readReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read imported resource: %w", err)
+	}
+
+	if readResp.Diagnostics().HasErrors() {
+		return nil, fmt.Errorf("read after import failed: %s", a.formatDiagnostics(readResp.Diagnostics()))
+	}
+
+	// Convert the complete current state back to map
+	stateCty, err := readResp.NewState().AsCtyValue(resourceType_cty)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode current state: %w", err)
 	}
 
 	stateMap, err := a.converter.CtyValueToMap(stateCty)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert imported state to map: %w", err)
+		return nil, fmt.Errorf("failed to convert current state to map: %w", err)
 	}
 
 	return stateMap, nil

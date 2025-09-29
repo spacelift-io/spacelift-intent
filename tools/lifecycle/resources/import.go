@@ -97,9 +97,11 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		// Handle empty state case
+		// Handle empty state case - for import, this indicates the resource doesn't exist
+		// TODO: Figure out if we want to handle empty state case for import here or in the providerManager
 		if len(state) == 0 {
-			return mcp.NewToolResultText("{}"), nil
+			err = fmt.Errorf("Resource with ID '%s' does not exist or returned empty state", args.ImportID)
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Get actual provider version

@@ -2,7 +2,6 @@ package test
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -389,13 +388,10 @@ func TestSpaceliftContextResourceImport(t *testing.T) {
 	assert.Contains(t, stateContent, resourceID, "State should contain resource ID after import")
 	assert.Contains(t, stateContent, contextID, "State should contain Spacelift context ID after import")
 
-	// Check if import captured the full resource data
-	if strings.Contains(stateContent, contextName) && strings.Contains(stateContent, "A context created via API for import testing") {
-		t.Logf("✅ Import captured full resource data including name and description")
-	} else {
-		t.Logf("⚠️  Import only captured basic resource structure - name/description are null")
-		t.Logf("This might be expected behavior depending on Spacelift provider import implementation")
-	}
+	// Import must capture the full resource data - this should not be optional
+	assert.Contains(t, stateContent, contextName, "Import must capture the full resource name")
+	assert.Contains(t, stateContent, "A context created via API for import testing", "Import must capture the full resource description")
+	t.Logf("✅ Import captured full resource data including name and description")
 
 	t.Logf("✅ Verified context exists in state after import")
 
@@ -405,6 +401,58 @@ func TestSpaceliftContextResourceImport(t *testing.T) {
 	assert.Equal(t, contextName, finalContext.Name, "Context name should match after import")
 	assert.Equal(t, "A context created via API for import testing", *finalContext.Description, "Context description should match after import")
 	t.Logf("✅ Verified context consistency between state and Spacelift API after import")
+}
+
+// TestSpaceliftContextResourceImportNonExistent tests importing a spacelift_context resource that doesn't exist
+func TestSpaceliftContextResourceImportNonExistent(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
+	defer th.Cleanup()
+
+	resourceID := testhelper.GenerateUniqueResourceID("test-spacelift-context-import-nonexistent")
+	nonExistentContextID := "non-existent-context-id-12345"
+
+	// Step 1: Verify the resource does NOT exist in our state management
+	stateResult, _ := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	assert.True(t, stateResult.IsError, "Resource should not exist in state before import attempt")
+	t.Logf("✅ Verified resource does not exist in state before import attempt")
+
+	// Step 2: Attempt to import a non-existent context - this should fail
+	importResult, _ := th.CallTool("lifecycle-resources-import", map[string]any{
+		"destination_id": resourceID,
+		"provider":       "spacelift-io/spacelift",
+		"resource_type":  "spacelift_context",
+		"import_id":      nonExistentContextID,
+	})
+
+	// Let's examine what actually happened
+	t.Logf("Import result IsError: %v", importResult.IsError)
+	if !importResult.IsError {
+		importContent := th.GetTextContent(importResult)
+		t.Logf("Import result content: %s", importContent)
+	}
+
+	// The import should fail since the context doesn't exist
+	assert.True(t, importResult.IsError, "Import should fail when trying to import a non-existent resource")
+	if importResult.IsError {
+		t.Logf("✅ Import correctly failed for non-existent context ID: %s", nonExistentContextID)
+	}
+
+	// Step 3: Verify the resource still does NOT exist in our state management after failed import
+	stateAfterFailedImport, _ := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	t.Logf("State after failed import IsError: %v", stateAfterFailedImport.IsError)
+	if !stateAfterFailedImport.IsError {
+		stateContent := th.GetTextContent(stateAfterFailedImport)
+		t.Logf("Unexpected state content: %s", stateContent)
+	}
+	assert.True(t, stateAfterFailedImport.IsError, "Resource should still not exist in state after failed import")
+	t.Logf("✅ Verified resource does not exist in state after failed import - no partial state created")
 }
 
 // TestSpaceliftContextResourceOperations tests getting operations for a spacelift_context resource
