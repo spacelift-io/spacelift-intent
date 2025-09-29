@@ -403,6 +403,58 @@ func TestSpaceliftContextResourceImport(t *testing.T) {
 	t.Logf("✅ Verified context consistency between state and Spacelift API after import")
 }
 
+// TestSpaceliftContextResourceImportNonExistent tests importing a spacelift_context resource that doesn't exist
+func TestSpaceliftContextResourceImportNonExistent(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
+	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
+	defer th.Cleanup()
+
+	resourceID := testhelper.GenerateUniqueResourceID("test-spacelift-context-import-nonexistent")
+	nonExistentContextID := "non-existent-context-id-12345"
+
+	// Step 1: Verify the resource does NOT exist in our state management
+	stateResult, _ := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	assert.True(t, stateResult.IsError, "Resource should not exist in state before import attempt")
+	t.Logf("✅ Verified resource does not exist in state before import attempt")
+
+	// Step 2: Attempt to import a non-existent context - this should fail
+	importResult, _ := th.CallTool("lifecycle-resources-import", map[string]any{
+		"destination_id": resourceID,
+		"provider":       "spacelift-io/spacelift",
+		"resource_type":  "spacelift_context",
+		"import_id":      nonExistentContextID,
+	})
+
+	// Let's examine what actually happened
+	t.Logf("Import result IsError: %v", importResult.IsError)
+	if !importResult.IsError {
+		importContent := th.GetTextContent(importResult)
+		t.Logf("Import result content: %s", importContent)
+	}
+
+	// The import should fail since the context doesn't exist
+	assert.True(t, importResult.IsError, "Import should fail when trying to import a non-existent resource")
+	if importResult.IsError {
+		t.Logf("✅ Import correctly failed for non-existent context ID: %s", nonExistentContextID)
+	}
+
+	// Step 3: Verify the resource still does NOT exist in our state management after failed import
+	stateAfterFailedImport, _ := th.CallTool("state-get", map[string]any{
+		"resource_id": resourceID,
+	})
+	t.Logf("State after failed import IsError: %v", stateAfterFailedImport.IsError)
+	if !stateAfterFailedImport.IsError {
+		stateContent := th.GetTextContent(stateAfterFailedImport)
+		t.Logf("Unexpected state content: %s", stateContent)
+	}
+	assert.True(t, stateAfterFailedImport.IsError, "Resource should still not exist in state after failed import")
+	t.Logf("✅ Verified resource does not exist in state after failed import - no partial state created")
+}
+
 // TestSpaceliftContextResourceOperations tests getting operations for a spacelift_context resource
 func TestSpaceliftContextResourceOperations(t *testing.T) {
 	// Load Spacelift credentials from .env.spacelift

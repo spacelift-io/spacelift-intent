@@ -64,6 +64,9 @@ func (c *CtyConverter) CtyValueToMap(val cty.Value) (map[string]any, error) {
 	}
 
 	// For other non-map values at top level, wrap them (this shouldn't happen in normal usage)
+	if result == nil {
+		return map[string]any{}, nil
+	}
 	return map[string]any{"value": result}, nil
 }
 

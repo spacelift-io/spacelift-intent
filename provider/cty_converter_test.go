@@ -357,6 +357,11 @@ func TestCtyConverter_CtyValueToMap_TopLevel(t *testing.T) {
 				"value": "hello",
 			},
 		},
+		{
+			name:     "null value returns empty map",
+			input:    cty.NullVal(cty.String),
+			expected: map[string]any{},
+		},
 	}
 
 	for _, tt := range tests {
