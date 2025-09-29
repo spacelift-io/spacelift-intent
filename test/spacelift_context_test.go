@@ -2,7 +2,6 @@ package test
 
 import (
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -389,13 +388,10 @@ func TestSpaceliftContextResourceImport(t *testing.T) {
 	assert.Contains(t, stateContent, resourceID, "State should contain resource ID after import")
 	assert.Contains(t, stateContent, contextID, "State should contain Spacelift context ID after import")
 
-	// Check if import captured the full resource data
-	if strings.Contains(stateContent, contextName) && strings.Contains(stateContent, "A context created via API for import testing") {
-		t.Logf("✅ Import captured full resource data including name and description")
-	} else {
-		t.Logf("⚠️  Import only captured basic resource structure - name/description are null")
-		t.Logf("This might be expected behavior depending on Spacelift provider import implementation")
-	}
+	// Import must capture the full resource data - this should not be optional
+	assert.Contains(t, stateContent, contextName, "Import must capture the full resource name")
+	assert.Contains(t, stateContent, "A context created via API for import testing", "Import must capture the full resource description")
+	t.Logf("✅ Import captured full resource data including name and description")
 
 	t.Logf("✅ Verified context exists in state after import")
 
