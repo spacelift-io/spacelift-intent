@@ -38,10 +38,21 @@ type ProviderSearchResult struct {
 type StateRecord struct {
 	ResourceID   string         `json:"resource_id"`
 	Provider     string         `json:"provider"`
-	Version      string         `json:"version"`
+	Version      string         `json:"version"` // provider version
 	ResourceType string         `json:"resource_type"`
 	State        map[string]any `json:"state"`
 	CreatedAt    string         `json:"created_at"`
+}
+
+func (r StateRecord) GetProvider() *ProviderConfig {
+	version := &r.Version
+	if r.Version == "" {
+		version = nil
+	}
+	return &ProviderConfig{
+		Name:    r.Provider,
+		Version: version,
+	}
 }
 
 // FieldMapping represents which fields impact which in a dependency
@@ -123,4 +134,23 @@ type ProviderSchema struct {
 	Resources   map[string]*TypeDescription
 	DataSources map[string]*TypeDescription
 	Version     string
+}
+
+type ProviderConfig struct {
+	Name    string         `json:"name"`
+	Version *string        `json:"version,omitempty"`
+	Config  map[string]any `json:"config,omitempty"`
+}
+
+// ProviderVersionInfo represents provider version information from registry
+type ProviderVersionInfo struct {
+	Version   string             `json:"version"`
+	Protocols []string           `json:"protocols"`
+	Platforms []ProviderPlatform `json:"platforms"`
+}
+
+// ProviderPlatform represents a supported platform
+type ProviderPlatform struct {
+	OS   string `json:"os"`
+	Arch string `json:"arch"`
 }

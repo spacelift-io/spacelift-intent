@@ -95,8 +95,24 @@ func (c *openTofuClient) FindProvider(ctx context.Context, query string) (*types
 	return bestProvider, nil
 }
 
+func (c *openTofuClient) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
+	// Parse provider name
+	namespace, providerType, err := parseProviderName(providerName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get available versions
+	versions, err := c.getProviderVersions(ctx, namespace, providerType)
+	if err != nil {
+		return nil, err
+	}
+
+	return versions, nil
+}
+
 // GetProviderDownload gets download information for a provider
-func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName string) (*types.DownloadInfo, error) {
+func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName string, version *string) (*types.DownloadInfo, error) {
 	// Parse provider name
 	namespace, providerType, err := parseProviderName(providerName)
 	if err != nil {
@@ -110,7 +126,7 @@ func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName s
 	}
 
 	// Find compatible version
-	selectedVersion, err := selectCompatibleVersion(versions)
+	selectedVersion, err := selectCompatibleVersion(versions, version)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +182,7 @@ func (c *openTofuClient) Download(ctx context.Context, url string) (io.ReadClose
 }
 
 // getProviderVersions gets available versions for a provider
-func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, providerType string) (*versionsResponse, error) {
+func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, providerType string) ([]types.ProviderVersionInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(versionsURLTemplate, namespace, providerType), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create versions request: %w", err)
@@ -191,17 +207,20 @@ func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, pro
 		return nil, fmt.Errorf("no versions available")
 	}
 
-	return &versions, nil
+	return versions.Versions, nil
 }
 
 // selectCompatibleVersion selects the latest version that supports protocol 5
 // TODO: support multiple protocols in the future
-func selectCompatibleVersion(versions *versionsResponse) (string, error) {
-	for _, v := range versions.Versions {
+func selectCompatibleVersion(versions []types.ProviderVersionInfo, version *string) (string, error) {
+	for _, v := range versions {
 		for _, protocol := range v.Protocols {
 			if protocol == "5.0" {
 				return v.Version, nil
 			}
+		}
+		if version != nil && *version == v.Version {
+			return v.Version, nil
 		}
 	}
 	return "", fmt.Errorf("no compatible version found")
@@ -236,7 +255,7 @@ type platform struct {
 
 // versionsResponse represents the registry response for available versions
 type versionsResponse struct {
-	Versions []versionInfo `json:"versions"`
+	Versions []types.ProviderVersionInfo `json:"versions"`
 }
 
 // downloadResponse represents the registry response for download information

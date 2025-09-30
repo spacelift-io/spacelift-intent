@@ -83,7 +83,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Update the resource using the provider manager
-		newState, err := providerManager.UpdateResource(ctx, record.Provider, record.ResourceType, record.State, args.Config)
+		newState, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
 		if err != nil {
 			err = fmt.Errorf("Failed to update resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil

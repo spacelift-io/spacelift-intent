@@ -11,9 +11,19 @@ import (
 )
 
 type readArgs struct {
-	ProviderName   string         `json:"provider"`
-	DataSourceType string         `json:"data_source_type"`
-	Config         map[string]any `json:"config"`
+	ProviderName    string         `json:"provider"`
+	DataSourceType  string         `json:"data_source_type"`
+	Config          map[string]any `json:"config"`
+	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
+}
+
+func (args readArgs) GetProvider() *types.ProviderConfig {
+	return &types.ProviderConfig{
+		Name:    args.ProviderName,
+		Version: args.ProviderVersion,
+		Config:  args.ProviderConfig,
+	}
 }
 
 func Read(providerManager types.ProviderManager) i.Tool {
@@ -52,7 +62,7 @@ func Read(providerManager types.ProviderManager) i.Tool {
 func read(providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args readArgs) (*mcp.CallToolResult, error) {
 		// Read data source using provider manager
-		state, err := providerManager.ReadDataSource(ctx, args.ProviderName, args.DataSourceType, args.Config)
+		state, err := providerManager.ReadDataSource(ctx, args.GetProvider(), args.DataSourceType, args.Config)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to read data source: %v", err)), nil
 		}

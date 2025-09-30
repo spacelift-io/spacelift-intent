@@ -74,7 +74,7 @@ func delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Delete the resource using the provider manager
-		err = providerManager.DeleteResource(ctx, record.Provider, record.ResourceType, record.State)
+		err = providerManager.DeleteResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("Failed to delete resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
