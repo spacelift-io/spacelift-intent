@@ -496,6 +496,7 @@ func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerName, data
 	readReq := &providerops.ReadDataResourceRequest{
 		ResourceType: dataSourceType,
 		Config:       configDV,
+		ProviderMeta: configDV,
 	}
 
 	// Read the data source
