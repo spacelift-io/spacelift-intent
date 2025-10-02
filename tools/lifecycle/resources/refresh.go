@@ -75,7 +75,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Refresh the resource using the provider manager
-		refreshedState, err := providerManager.RefreshResource(ctx, record.Provider, record.ResourceType, record.State)
+		refreshedState, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("Failed to refresh resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil

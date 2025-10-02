@@ -11,8 +11,16 @@ import (
 )
 
 type describeArgs struct {
-	Provider       string `json:"provider"`
-	DataSourceType string `json:"data_source_type"`
+	Provider        string  `json:"provider"`
+	DataSourceType  string  `json:"data_source_type"`
+	ProviderVersion *string `json:"provider_version,omitempty"`
+}
+
+func (args describeArgs) GetProvider() *types.ProviderConfig {
+	return &types.ProviderConfig{
+		Name:    args.Provider,
+		Version: args.ProviderVersion,
+	}
 }
 
 func Describe(providerManager types.ProviderManager) i.Tool {
@@ -48,7 +56,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 func describe(providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
 		// Describe data source using provider manager
-		description, err := providerManager.DescribeDataSource(ctx, args.Provider, args.DataSourceType)
+		description, err := providerManager.DescribeDataSource(ctx, args.GetProvider(), args.DataSourceType)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to describe data source: %v", err)), nil
 		}

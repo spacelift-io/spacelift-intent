@@ -11,10 +11,20 @@ import (
 )
 
 type importArgs struct {
-	ImportID      string `json:"import_id"`
-	DestinationID string `json:"destination_id"`
-	Provider      string `json:"provider"`
-	ResourceType  string `json:"resource_type"`
+	ImportID        string         `json:"import_id"`
+	DestinationID   string         `json:"destination_id"`
+	Provider        string         `json:"provider"`
+	ResourceType    string         `json:"resource_type"`
+	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
+}
+
+func (args importArgs) GetProvider() *types.ProviderConfig {
+	return &types.ProviderConfig{
+		Name:    args.Provider,
+		Version: args.ProviderVersion,
+		Config:  args.ProviderConfig,
+	}
 }
 
 func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool {
@@ -91,7 +101,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Import resource using provider manager
-		state, err := providerManager.ImportResource(ctx, args.Provider, args.ResourceType, args.ImportID)
+		state, err := providerManager.ImportResource(ctx, args.GetProvider(), args.ResourceType, args.ImportID)
 		if err != nil {
 			err = fmt.Errorf("Failed to import resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil

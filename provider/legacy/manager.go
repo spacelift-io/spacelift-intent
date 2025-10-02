@@ -38,15 +38,24 @@ func NewManager(tmpDir string, registry types.RegistryClient) types.ProviderMana
 	}
 }
 
-func (a *DefaultManager) getSchema(ctx context.Context, providerName string) (*types.ProviderSchema, error) {
+func (a *DefaultManager) DescribeProvider(ctx context.Context, providerConfig *types.ProviderConfig) (*types.ProviderSchema, *string, error) {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
+		return nil, nil, err
+	}
+
+	schema, err := a.getSchema(ctx, providerConfig)
+	return schema, nil, err
+}
+
+func (a *DefaultManager) getSchema(ctx context.Context, provider *types.ProviderConfig) (*types.ProviderSchema, error) {
 	// Get resources list
-	resources, err := a.ListResources(ctx, providerName)
+	resources, err := a.ListResources(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list resources: %w", err)
 	}
 
 	// Get data sources list
-	dataSources, err := a.ListDataSources(ctx, providerName)
+	dataSources, err := a.ListDataSources(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list data sources: %w", err)
 	}
@@ -56,9 +65,20 @@ func (a *DefaultManager) getSchema(ctx context.Context, providerName string) (*t
 		DataSources: make(map[string]*types.TypeDescription),
 	}
 
+	sh, err := a.getProviderSchema(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+
+	desc, err := a.describeConfig(ctx, provider, sh)
+	if err != nil {
+		return nil, fmt.Errorf("failed to describe provider config: %w", err)
+	}
+	schema.Provider = desc
+
 	// Build resource schemas
 	for _, resourceType := range resources {
-		desc, err := a.DescribeResource(ctx, providerName, resourceType)
+		desc, err := a.describeResource(ctx, provider, resourceType, sh)
 		if err != nil {
 			return nil, fmt.Errorf("failed to describe resource %s: %w", resourceType, err)
 		}
@@ -67,7 +87,7 @@ func (a *DefaultManager) getSchema(ctx context.Context, providerName string) (*t
 
 	// Build data source schemas
 	for _, dataSourceType := range dataSources {
-		desc, err := a.DescribeDataSource(ctx, providerName, dataSourceType)
+		desc, err := a.describeDataSource(ctx, provider, dataSourceType, sh)
 		if err != nil {
 			return nil, fmt.Errorf("failed to describe data source %s: %w", dataSourceType, err)
 		}
@@ -75,7 +95,7 @@ func (a *DefaultManager) getSchema(ctx context.Context, providerName string) (*t
 	}
 
 	// Get provider version
-	version, err := a.GetProviderVersion(ctx, providerName)
+	version, err := a.GetProviderVersion(ctx, provider.Name)
 	if err == nil {
 		schema.Version = version
 	}
@@ -84,78 +104,82 @@ func (a *DefaultManager) getSchema(ctx context.Context, providerName string) (*t
 }
 
 // getProviderInfo returns internal provider info (private helper)
-func (pm *DefaultManager) getProviderInfo(providerName string) (*providerInfo, error) {
-	provider, exists := pm.providers[providerName]
+func (pm *DefaultManager) getProviderInfo(provider *types.ProviderConfig) (*providerInfo, error) {
+	providerInfo, exists := pm.providers[provider.Name]
 	if !exists {
-		return nil, fmt.Errorf("provider %s not loaded", providerName)
+		return nil, fmt.Errorf("provider %s not loaded", provider.Name)
 	}
-	return provider, nil
+	return providerInfo, nil
 }
 
 // getProviderSchema loads a provider and returns its schema
-func (pm *DefaultManager) getProviderSchema(ctx context.Context, providerName string) (*pb.GetProviderSchema_Response, error) {
+func (pm *DefaultManager) getProviderSchema(ctx context.Context, provider *types.ProviderConfig) (*pb.GetProviderSchema_Response, error) {
 	defer pm.Cleanup(ctx)
-	if err := pm.LoadProvider(ctx, providerName); err != nil {
+	if err := pm.LoadProvider(ctx, provider); err != nil {
 		return nil, fmt.Errorf("failed to load provider: %w", err)
 	}
 
-	provider, err := pm.getProviderInfo(providerName)
+	providerInfo, err := pm.getProviderInfo(provider)
 	if err != nil {
 		return nil, err
 	}
 
-	if provider.schema == nil {
+	if providerInfo.schema == nil {
 		return nil, fmt.Errorf("provider schema not loaded")
 	}
 
-	return provider.schema, nil
+	return providerInfo.schema, nil
 }
 
 // getProviderClient loads a provider and returns both its client and schema
-func (pm *DefaultManager) getProviderClient(ctx context.Context, providerName string) (pb.ProviderClient, *pb.GetProviderSchema_Response, error) {
-	if err := pm.LoadProvider(ctx, providerName); err != nil {
+func (pm *DefaultManager) getProviderClient(ctx context.Context, provider *types.ProviderConfig) (pb.ProviderClient, *pb.GetProviderSchema_Response, error) {
+	if err := pm.LoadProvider(ctx, provider); err != nil {
 		return nil, nil, fmt.Errorf("failed to load provider: %w", err)
 	}
 
-	provider, err := pm.getProviderInfo(providerName)
+	providerInfo, err := pm.getProviderInfo(provider)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if provider.schema == nil {
+	if providerInfo.schema == nil {
 		return nil, nil, fmt.Errorf("provider schema not loaded")
 	}
 
-	return provider.provider, provider.schema, nil
+	return providerInfo.provider, providerInfo.schema, nil
+}
+
+func (pm *DefaultManager) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
+	return pm.registry.GetProviderVersions(ctx, providerName)
 }
 
 // LoadProvider downloads and initializes a provider if not already loaded
-func (pm *DefaultManager) LoadProvider(ctx context.Context, providerName string) error {
+func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.ProviderConfig) error {
 	// Check if provider is already loaded
-	if _, exists := pm.providers[providerName]; exists {
+	if _, exists := pm.providers[provider.Name]; exists {
 		return nil
 	}
 
 	// Parse provider name
-	parts := strings.Split(providerName, "/")
+	parts := strings.Split(provider.Name, "/")
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid provider name format, expected 'namespace/type'")
 	}
 
 	// Get download info from registry
-	downloadInfo, err := pm.registry.GetProviderDownload(ctx, providerName)
+	downloadInfo, err := pm.registry.GetProviderDownload(ctx, provider.Name, provider.Version)
 	if err != nil {
 		return fmt.Errorf("failed to get provider download info: %w", err)
 	}
 
 	// Download and extract provider
-	binaryPath, err := pm.downloadAndExtractProvider(ctx, providerName, downloadInfo.DownloadURL)
+	binaryPath, err := pm.downloadAndExtractProvider(ctx, provider.Name, downloadInfo.DownloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download provider: %w", err)
 	}
 
 	// Initialize the provider
-	return pm.initializeProvider(ctx, providerName, binaryPath, downloadInfo.Version)
+	return pm.initializeProvider(ctx, provider.Name, binaryPath, downloadInfo.Version)
 }
 
 // downloadAndExtractProvider downloads and extracts a provider binary
@@ -371,8 +395,8 @@ func (pm *DefaultManager) Cleanup(ctx context.Context) {
 // Resource management methods
 
 // ListResources lists all available resource types for a provider
-func (pm *DefaultManager) ListResources(ctx context.Context, providerName string) ([]string, error) {
-	schema, err := pm.getProviderSchema(ctx, providerName)
+func (pm *DefaultManager) ListResources(ctx context.Context, provider *types.ProviderConfig) ([]string, error) {
+	schema, err := pm.getProviderSchema(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -389,14 +413,28 @@ func (pm *DefaultManager) ListResources(ctx context.Context, providerName string
 	return resources, nil
 }
 
+func (pm *DefaultManager) describeConfig(_ context.Context, provider *types.ProviderConfig, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
+	properties, required := pm.convertSchema(schema.Provider)
+	return &types.TypeDescription{
+		ProviderName: provider.Name,
+		Properties:   properties,
+		Required:     required,
+	}, nil
+}
+
 // DescribeResource gets the schema and documentation for a resource type
-func (pm *DefaultManager) DescribeResource(ctx context.Context, providerName, resourceType string) (*types.TypeDescription, error) {
-	schema, err := pm.getProviderSchema(ctx, providerName)
+func (pm *DefaultManager) DescribeResource(ctx context.Context, provider *types.ProviderConfig, resourceType string) (*types.TypeDescription, error) {
+	schema, err := pm.getProviderSchema(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	return pm.describeResource(ctx, provider, resourceType, schema)
+}
+
+// DescribeResource gets the schema and documentation for a resource type
+func (pm *DefaultManager) describeResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
 
@@ -409,7 +447,7 @@ func (pm *DefaultManager) DescribeResource(ctx context.Context, providerName, re
 	}
 
 	return &types.TypeDescription{
-		ProviderName: providerName,
+		ProviderName: provider.Name,
 		Type:         resourceType,
 		Description:  description,
 		Properties:   properties,
@@ -418,15 +456,15 @@ func (pm *DefaultManager) DescribeResource(ctx context.Context, providerName, re
 }
 
 // PlanResource plans a resource instance
-func (pm *DefaultManager) PlanResource(ctx context.Context, providerName, resourceType string, currentState *map[string]any, newConfig map[string]any) (map[string]any, error) {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) PlanResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState *map[string]any, newConfig map[string]any) (map[string]any, error) {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get resource schema
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
 	resourceSchema := schema.ResourceSchemas[resourceType]
@@ -444,12 +482,12 @@ func (pm *DefaultManager) PlanResource(ctx context.Context, providerName, resour
 	}
 
 	// Validate new configuration
-	if err := pm.validateResource(ctx, provider, resourceType, encodedNewConfig); err != nil {
+	if err := pm.validateResource(ctx, providerClient, resourceType, encodedNewConfig); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Plan resource change
-	planResp, err := provider.PlanResourceChange(ctx, &pb.PlanResourceChange_Request{
+	planResp, err := providerClient.PlanResourceChange(ctx, &pb.PlanResourceChange_Request{
 		TypeName:         resourceType,
 		PriorState:       encodedCurrentState,
 		ProposedNewState: encodedNewConfig,
@@ -478,15 +516,15 @@ func (pm *DefaultManager) PlanResource(ctx context.Context, providerName, resour
 }
 
 // CreateResource creates a new resource instance
-func (pm *DefaultManager) CreateResource(ctx context.Context, providerName, resourceType string, config map[string]any) (map[string]any, error) {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) CreateResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, config map[string]any) (map[string]any, error) {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get resource schema
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
 	resourceSchema := schema.ResourceSchemas[resourceType]
@@ -501,24 +539,24 @@ func (pm *DefaultManager) CreateResource(ctx context.Context, providerName, reso
 	}
 
 	// Validate configuration
-	if err := pm.validateResource(ctx, provider, resourceType, encodedConfig); err != nil {
+	if err := pm.validateResource(ctx, providerClient, resourceType, encodedConfig); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Plan and apply resource creation
-	return pm.planAndApplyResource(ctx, provider, resourceType, encodedConfig)
+	return pm.planAndApplyResource(ctx, providerClient, resourceType, encodedConfig)
 }
 
 // UpdateResource updates an existing resource instance
-func (pm *DefaultManager) UpdateResource(ctx context.Context, providerName, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) UpdateResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get resource schema
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
 	resourceSchema := schema.ResourceSchemas[resourceType]
@@ -538,12 +576,12 @@ func (pm *DefaultManager) UpdateResource(ctx context.Context, providerName, reso
 	}
 
 	// Validate new configuration
-	if err := pm.validateResource(ctx, provider, resourceType, encodedNewConfig); err != nil {
+	if err := pm.validateResource(ctx, providerClient, resourceType, encodedNewConfig); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Plan resource update
-	planResp, err := provider.PlanResourceChange(ctx, &pb.PlanResourceChange_Request{
+	planResp, err := providerClient.PlanResourceChange(ctx, &pb.PlanResourceChange_Request{
 		TypeName:         resourceType,
 		PriorState:       encodedCurrentState,
 		ProposedNewState: encodedNewConfig,
@@ -558,7 +596,7 @@ func (pm *DefaultManager) UpdateResource(ctx context.Context, providerName, reso
 	}
 
 	// Apply resource update
-	applyResp, err := provider.ApplyResourceChange(ctx, &pb.ApplyResourceChange_Request{
+	applyResp, err := providerClient.ApplyResourceChange(ctx, &pb.ApplyResourceChange_Request{
 		TypeName:       resourceType,
 		PriorState:     encodedCurrentState,
 		PlannedState:   planResp.PlannedState,
@@ -583,15 +621,15 @@ func (pm *DefaultManager) UpdateResource(ctx context.Context, providerName, reso
 }
 
 // DeleteResource deletes an existing resource instance
-func (pm *DefaultManager) DeleteResource(ctx context.Context, providerName, resourceType string, state map[string]any) error {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) DeleteResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, state map[string]any) error {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return err
 	}
 
 	// Get resource schema
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return err
 	}
 
@@ -602,19 +640,19 @@ func (pm *DefaultManager) DeleteResource(ctx context.Context, providerName, reso
 	}
 
 	// Plan and apply resource deletion
-	return pm.planAndApplyDeletion(ctx, provider, resourceType, encodedState)
+	return pm.planAndApplyDeletion(ctx, providerClient, resourceType, encodedState)
 }
 
 // RefreshResource reads the current state of an existing resource from the provider
-func (pm *DefaultManager) RefreshResource(ctx context.Context, providerName, resourceType string, currentState map[string]any) (map[string]any, error) {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) RefreshResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState map[string]any) (map[string]any, error) {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate that the resource type exists
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
 	resourceSchema := schema.ResourceSchemas[resourceType]
@@ -627,7 +665,7 @@ func (pm *DefaultManager) RefreshResource(ctx context.Context, providerName, res
 	}
 
 	// Read the resource to get the current state from the provider
-	readResp, err := provider.ReadResource(ctx, &pb.ReadResource_Request{
+	readResp, err := providerClient.ReadResource(ctx, &pb.ReadResource_Request{
 		TypeName:     resourceType,
 		CurrentState: encodedState,
 	})
@@ -649,22 +687,22 @@ func (pm *DefaultManager) RefreshResource(ctx context.Context, providerName, res
 }
 
 // ImportResource imports an existing resource into the state management system
-func (pm *DefaultManager) ImportResource(ctx context.Context, providerName, resourceType, resourceID string) (map[string]any, error) {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) ImportResource(ctx context.Context, provider *types.ProviderConfig, resourceType, importID string) (map[string]any, error) {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate that the resource type exists
-	if err := pm.validateResourceExists(schema, providerName, resourceType); err != nil {
+	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
 
 	// Create an import request
-	importResp, err := provider.ImportResourceState(ctx, &pb.ImportResourceState_Request{
+	importResp, err := providerClient.ImportResourceState(ctx, &pb.ImportResourceState_Request{
 		TypeName: resourceType,
-		Id:       resourceID,
+		Id:       importID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("import failed: %w", err)
@@ -682,7 +720,7 @@ func (pm *DefaultManager) ImportResource(ctx context.Context, providerName, reso
 	importedResource := importResp.ImportedResources[0]
 
 	// Now read the resource to get the complete current state
-	readResp, err := provider.ReadResource(ctx, &pb.ReadResource_Request{
+	readResp, err := providerClient.ReadResource(ctx, &pb.ReadResource_Request{
 		TypeName:     resourceType,
 		CurrentState: importedResource.State,
 		Private:      importedResource.Private,
@@ -707,8 +745,8 @@ func (pm *DefaultManager) ImportResource(ctx context.Context, providerName, reso
 // Data source management methods
 
 // ListDataSources lists all available data source types for a provider
-func (pm *DefaultManager) ListDataSources(ctx context.Context, providerName string) ([]string, error) {
-	schema, err := pm.getProviderSchema(ctx, providerName)
+func (pm *DefaultManager) ListDataSources(ctx context.Context, provider *types.ProviderConfig) ([]string, error) {
+	schema, err := pm.getProviderSchema(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -726,13 +764,18 @@ func (pm *DefaultManager) ListDataSources(ctx context.Context, providerName stri
 }
 
 // DescribeDataSource gets the schema and documentation for a data source type
-func (pm *DefaultManager) DescribeDataSource(ctx context.Context, providerName, dataSourceType string) (*types.TypeDescription, error) {
-	schema, err := pm.getProviderSchema(ctx, providerName)
+func (pm *DefaultManager) DescribeDataSource(ctx context.Context, provider *types.ProviderConfig, dataSourceType string) (*types.TypeDescription, error) {
+	schema, err := pm.getProviderSchema(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := pm.validateDataSourceExists(schema, providerName, dataSourceType); err != nil {
+	return pm.describeDataSource(ctx, provider, dataSourceType, schema)
+}
+
+// DescribeDataSource gets the schema and documentation for a data source type
+func (pm *DefaultManager) describeDataSource(ctx context.Context, provider *types.ProviderConfig, dataSourceType string, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
+	if err := pm.validateDataSourceExists(schema, provider.Name, dataSourceType); err != nil {
 		return nil, err
 	}
 
@@ -741,7 +784,7 @@ func (pm *DefaultManager) DescribeDataSource(ctx context.Context, providerName, 
 	properties, required := pm.convertSchema(dataSourceSchema)
 
 	return &types.TypeDescription{
-		ProviderName: providerName,
+		ProviderName: provider.Name,
 		Type:         dataSourceType,
 		Description:  fmt.Sprintf("OpenTofu %s data source", dataSourceType),
 		Properties:   properties,
@@ -750,15 +793,15 @@ func (pm *DefaultManager) DescribeDataSource(ctx context.Context, providerName, 
 }
 
 // ReadDataSource reads data from a data source
-func (pm *DefaultManager) ReadDataSource(ctx context.Context, providerName, dataSourceType string, config map[string]any) (map[string]any, error) {
-	provider, schema, err := pm.getProviderClient(ctx, providerName)
+func (pm *DefaultManager) ReadDataSource(ctx context.Context, provider *types.ProviderConfig, dataSourceType string, config map[string]any) (map[string]any, error) {
+	providerClient, schema, err := pm.getProviderClient(ctx, provider)
 	defer pm.Cleanup(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get data source schema
-	if err := pm.validateDataSourceExists(schema, providerName, dataSourceType); err != nil {
+	if err := pm.validateDataSourceExists(schema, provider.Name, dataSourceType); err != nil {
 		return nil, err
 	}
 	dataSourceSchema := schema.DataSourceSchemas[dataSourceType]
@@ -792,12 +835,12 @@ func (pm *DefaultManager) ReadDataSource(ctx context.Context, providerName, data
 	}
 
 	// Validate configuration
-	if err := pm.validateDataSource(ctx, provider, dataSourceType, encodedConfig); err != nil {
+	if err := pm.validateDataSource(ctx, providerClient, dataSourceType, encodedConfig); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Read data source
-	readResp, err := provider.ReadDataSource(ctx, &pb.ReadDataSource_Request{
+	readResp, err := providerClient.ReadDataSource(ctx, &pb.ReadDataSource_Request{
 		TypeName: dataSourceType,
 		Config:   encodedConfig,
 	})

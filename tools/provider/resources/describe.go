@@ -15,6 +15,12 @@ type describeArgs struct {
 	ResourceType string `json:"resource_type"`
 }
 
+func (args describeArgs) GetProvider() *types.ProviderConfig {
+	return &types.ProviderConfig{
+		Name: args.Provider,
+	}
+}
+
 func Describe(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("provider-resources-describe"),
@@ -49,7 +55,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 func describe(providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
 		// Describe resource using provider manager
-		description, err := providerManager.DescribeResource(ctx, args.Provider, args.ResourceType)
+		description, err := providerManager.DescribeResource(ctx, args.GetProvider(), args.ResourceType)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to describe resource: %v", err)), nil
 		}

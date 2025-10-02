@@ -31,56 +31,64 @@ func NewAdaptiveManager(tmpDir string, registry types.RegistryClient) types.Prov
 	}
 }
 
-func (m *AdaptiveManager) LoadProvider(ctx context.Context, providerName string) error {
-	return m.adapter.LoadProvider(ctx, providerName)
+func (m *AdaptiveManager) LoadProvider(ctx context.Context, provider *types.ProviderConfig) error {
+	return m.adapter.LoadProvider(ctx, provider)
+}
+
+func (m *AdaptiveManager) DescribeProvider(ctx context.Context, providerConfig *types.ProviderConfig) (*types.ProviderSchema, *string, error) {
+	return m.adapter.DescribeProvider(ctx, providerConfig)
 }
 
 func (m *AdaptiveManager) GetProviderVersion(ctx context.Context, providerName string) (string, error) {
 	return m.adapter.GetProviderVersion(ctx, providerName)
 }
 
-func (m *AdaptiveManager) ListResources(ctx context.Context, providerName string) ([]string, error) {
-	return m.adapter.ListResources(ctx, providerName)
+func (m *AdaptiveManager) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
+	return m.adapter.GetProviderVersions(ctx, providerName)
 }
 
-func (m *AdaptiveManager) DescribeResource(ctx context.Context, providerName, resourceType string) (*types.TypeDescription, error) {
-	return m.adapter.DescribeResource(ctx, providerName, resourceType)
+func (m *AdaptiveManager) ListResources(ctx context.Context, provider *types.ProviderConfig) ([]string, error) {
+	return m.adapter.ListResources(ctx, provider)
 }
 
-func (m *AdaptiveManager) ListDataSources(ctx context.Context, providerName string) ([]string, error) {
-	return m.adapter.ListDataSources(ctx, providerName)
+func (m *AdaptiveManager) DescribeResource(ctx context.Context, provider *types.ProviderConfig, resourceType string) (*types.TypeDescription, error) {
+	return m.adapter.DescribeResource(ctx, provider, resourceType)
 }
 
-func (m *AdaptiveManager) DescribeDataSource(ctx context.Context, providerName, dataSourceType string) (*types.TypeDescription, error) {
-	return m.adapter.DescribeDataSource(ctx, providerName, dataSourceType)
+func (m *AdaptiveManager) ListDataSources(ctx context.Context, provider *types.ProviderConfig) ([]string, error) {
+	return m.adapter.ListDataSources(ctx, provider)
 }
 
-func (m *AdaptiveManager) PlanResource(ctx context.Context, providerName, resourceType string, currentState *map[string]any, newConfig map[string]any) (map[string]any, error) {
-	return m.adapter.PlanResource(ctx, providerName, resourceType, currentState, newConfig)
+func (m *AdaptiveManager) DescribeDataSource(ctx context.Context, provider *types.ProviderConfig, dataSourceType string) (*types.TypeDescription, error) {
+	return m.adapter.DescribeDataSource(ctx, provider, dataSourceType)
 }
 
-func (m *AdaptiveManager) CreateResource(ctx context.Context, providerName, resourceType string, config map[string]any) (map[string]any, error) {
-	return m.adapter.CreateResource(ctx, providerName, resourceType, config)
+func (m *AdaptiveManager) PlanResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState *map[string]any, newConfig map[string]any) (map[string]any, error) {
+	return m.adapter.PlanResource(ctx, provider, resourceType, currentState, newConfig)
 }
 
-func (m *AdaptiveManager) UpdateResource(ctx context.Context, providerName, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
-	return m.adapter.UpdateResource(ctx, providerName, resourceType, currentState, newConfig)
+func (m *AdaptiveManager) CreateResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, config map[string]any) (map[string]any, error) {
+	return m.adapter.CreateResource(ctx, provider, resourceType, config)
 }
 
-func (m *AdaptiveManager) DeleteResource(ctx context.Context, providerName, resourceType string, currentState map[string]any) error {
-	return m.adapter.DeleteResource(ctx, providerName, resourceType, currentState)
+func (m *AdaptiveManager) UpdateResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
+	return m.adapter.UpdateResource(ctx, provider, resourceType, currentState, newConfig)
 }
 
-func (m *AdaptiveManager) ReadDataSource(ctx context.Context, providerName, dataSourceType string, config map[string]any) (map[string]any, error) {
-	return m.adapter.ReadDataSource(ctx, providerName, dataSourceType, config)
+func (m *AdaptiveManager) DeleteResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState map[string]any) error {
+	return m.adapter.DeleteResource(ctx, provider, resourceType, currentState)
 }
 
-func (m *AdaptiveManager) ImportResource(ctx context.Context, providerName, resourceType, resourceID string) (map[string]any, error) {
-	return m.adapter.ImportResource(ctx, providerName, resourceType, resourceID)
+func (m *AdaptiveManager) ReadDataSource(ctx context.Context, provider *types.ProviderConfig, dataSourceType string, config map[string]any) (map[string]any, error) {
+	return m.adapter.ReadDataSource(ctx, provider, dataSourceType, config)
 }
 
-func (m *AdaptiveManager) RefreshResource(ctx context.Context, providerName, resourceType string, currentState map[string]any) (map[string]any, error) {
-	return m.adapter.RefreshResource(ctx, providerName, resourceType, currentState)
+func (m *AdaptiveManager) ImportResource(ctx context.Context, provider *types.ProviderConfig, resourceType, resourceID string) (map[string]any, error) {
+	return m.adapter.ImportResource(ctx, provider, resourceType, resourceID)
+}
+
+func (m *AdaptiveManager) RefreshResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, currentState map[string]any) (map[string]any, error) {
+	return m.adapter.RefreshResource(ctx, provider, resourceType, currentState)
 }
 
 func (m *AdaptiveManager) Cleanup(ctx context.Context) {

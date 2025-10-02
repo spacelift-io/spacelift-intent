@@ -47,94 +47,182 @@ type OpenTofuAdapter struct {
 	binaries        map[string]string // provider name -> binary path
 }
 
-func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerName string) error {
+func (a *OpenTofuAdapter) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
+	return a.registry.GetProviderVersions(ctx, providerName)
+}
+
+func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerConfig *types.ProviderConfig) error {
 	// Check if already loaded
-	if _, exists := a.providers[providerName]; exists {
+	if _, exists := a.providers[providerConfig.Name]; exists {
 		return nil
 	}
 
-	// Parse provider name
-	parts := strings.Split(providerName, "/")
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid provider name format, expected 'namespace/type'")
-	}
-
-	// Download provider if needed
-	binary, err := a.downloadProvider(ctx, providerName)
+	provider, schema, rawSchema, err := a.loadProvider(ctx, providerConfig)
 	if err != nil {
-		return fmt.Errorf("failed to download provider %s: %w", providerName, err)
-	}
-	a.binaries[providerName] = binary
-
-	// Start the provider using the opentofu-providers library
-	provider, err := tofuprovider.StartGRPCPlugin(ctx, binary)
-	if err != nil {
-		return fmt.Errorf("failed to start provider %s: %w", providerName, err)
+		return err
 	}
 
-	emptyConfig, err := a.converter.MapToCtyValue(nil, cty.DynamicPseudoType)
-	if err != nil {
-		return fmt.Errorf("failed to encode empty config: %w", err)
-	}
-
-	// Configure the provider
-	configReq := &providerops.ConfigureProviderRequest{
-		Config:           providerschema.NewDynamicValue(emptyConfig, cty.DynamicPseudoType),
-		TerraformVersion: "1.6.0",
-	}
-
-	configResp, err := provider.ConfigureProvider(ctx, configReq)
-	if err != nil {
+	if err := a.configureProvider(ctx, providerConfig, provider, rawSchema); err != nil {
 		provider.Close()
-		return fmt.Errorf("failed to configure provider %s: %w", providerName, err)
+		return err
 	}
 
-	// Check for configuration errors
-	if configResp.Diagnostics().HasErrors() {
-		provider.Close()
-		return fmt.Errorf("provider configuration failed: %s", a.formatDiagnostics(configResp.Diagnostics()))
-	}
-
-	a.providers[providerName] = provider
-
-	// Call GetSchema here as some providers might get confused if we call ConfigureProvider without calling GetSchema first
-	schema, err := a.getSchema(ctx, providerName)
-	if err != nil {
-		return fmt.Errorf("failed to get provider schema for %s: %w", providerName, err)
-	}
-
-	// Store the provider, binary path
-	a.schemas[providerName] = schema
+	a.providers[providerConfig.Name] = provider
+	a.schemas[providerConfig.Name] = schema
+	a.rawSchemas[providerConfig.Name] = rawSchema
 
 	return nil
 }
 
-// getSchema is to be called only once after the provider is loaded
-func (a *OpenTofuAdapter) getSchema(ctx context.Context, providerName string) (*types.ProviderSchema, error) {
-	// Check cache
-	if schema, exists := a.schemas[providerName]; exists {
-		return schema, nil
+func (a *OpenTofuAdapter) configureProvider(ctx context.Context, providerConfig *types.ProviderConfig, provider tofuprovider.GRPCPluginProvider, schemaResponse providerops.GetProviderSchemaResponse) error {
+	configCandidates := []func(providerops.GetProviderSchemaResponse) (providerschema.DynamicValueIn, error){
+		a.emptyConfig,               // first, try empty config
+		a.configWithEmptyProperties, // second, try config with all properties set to undefined (null or empty)
+		/// ^^^ "hashicorp/azurerm" requires "features" block to be present, even if empty
 	}
 
-	// Get raw schema response (this will cache it)
-	schemaResp, err := a.getRawSchema(ctx, providerName)
+	finalErr := errors.New("no configuration method succeeded")
+
+	for _, configCandidate := range configCandidates {
+		config, err := configCandidate(schemaResponse)
+		if err != nil {
+			finalErr = err
+			continue
+		}
+
+		configReq := &providerops.ConfigureProviderRequest{
+			Config:           config,
+			TerraformVersion: "1.6.0",
+		}
+
+		configResp, err := provider.ConfigureProvider(ctx, configReq)
+		if err != nil {
+			finalErr = fmt.Errorf("failed to configure provider %s: %w", providerConfig.Name, err)
+			continue
+		}
+
+		if configResp.Diagnostics().HasErrors() {
+			finalErr = fmt.Errorf("provider configuration failed: %s", a.formatDiagnostics(configResp.Diagnostics()))
+			continue
+		}
+
+		return nil
+	}
+
+	return finalErr
+}
+
+func (a *OpenTofuAdapter) emptyConfig(_ providerops.GetProviderSchemaResponse) (providerschema.DynamicValueIn, error) {
+	emptyConfig, err := a.converter.MapToCtyValue(nil, cty.DynamicPseudoType)
 	if err != nil {
-		return nil, err
+		return providerschema.DynamicValueIn{}, fmt.Errorf("failed to encode empty config: %w", err)
+	}
+
+	return providerschema.NewDynamicValue(emptyConfig, cty.DynamicPseudoType), nil
+}
+
+func (a *OpenTofuAdapter) configWithEmptyProperties(schemaResponse providerops.GetProviderSchemaResponse) (providerschema.DynamicValueIn, error) {
+	sh := schemaResponse.ProviderSchema().ProviderConfigSchema()
+	attrs := maps.Collect(sh.Attributes())
+	nested := maps.Collect(sh.NestedBlockTypes())
+
+	types := map[string]cty.Type{}
+	for name := range attrs {
+		types[name] = cty.DynamicPseudoType
+	}
+	for name := range nested {
+		types[name] = cty.DynamicPseudoType
+	}
+	values := map[string]cty.Value{}
+	for name := range attrs {
+		values[name] = cty.NullVal(cty.DynamicPseudoType)
+	}
+	for name := range nested {
+		value, err := a.converter.MapToCtyValue(nil, cty.DynamicPseudoType)
+		if err != nil {
+			return providerschema.DynamicValueIn{}, fmt.Errorf("failed to map nested value for %s: %w", name, err)
+		}
+		values[name] = value
+	}
+
+	return providerschema.NewDynamicValue(cty.ObjectVal(values), cty.Object(types)), nil
+}
+
+func (a *OpenTofuAdapter) loadProvider(ctx context.Context, providerConfig *types.ProviderConfig) (tofuprovider.GRPCPluginProvider, *types.ProviderSchema, providerops.GetProviderSchemaResponse, error) {
+	// Parse provider name
+	parts := strings.Split(providerConfig.Name, "/")
+	if len(parts) != 2 {
+		return nil, nil, nil, fmt.Errorf("invalid provider name format, expected 'namespace/type'")
+	}
+
+	// Download provider if needed
+	binary, err := a.downloadProvider(ctx, providerConfig)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to download provider %s: %w", providerConfig.Name, err)
+	}
+	a.binaries[providerConfig.Name] = binary
+
+	// Start the provider using the opentofu-providers library
+	provider, err := tofuprovider.StartGRPCPlugin(ctx, binary)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to start provider %s: %w", providerConfig.Name, err)
+	}
+
+	schema, rawSchema, err := a.getSchemaWithProvider(ctx, providerConfig, provider)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get provider schema for %s: %w", providerConfig.Name, err)
+	}
+
+	return provider, schema, rawSchema, nil
+}
+
+func (a *OpenTofuAdapter) DescribeProvider(ctx context.Context, providerConfig *types.ProviderConfig) (*types.ProviderSchema, *string, error) {
+	provider, schema, rawSchema, err := a.loadProvider(ctx, providerConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	defer provider.Close()
+
+	var configureError *string
+	if err := a.configureProvider(ctx, providerConfig, provider, rawSchema); err != nil {
+		message := err.Error()
+		configureError = &message
+	}
+
+	return schema, configureError, nil
+}
+
+// getSchema is to be called only once after the provider is loaded
+func (a *OpenTofuAdapter) getSchemaWithProvider(ctx context.Context, providerConfig *types.ProviderConfig, provider tofuprovider.GRPCPluginProvider) (*types.ProviderSchema, providerops.GetProviderSchemaResponse, error) {
+	// Get raw schema response (this will cache it)
+	schemaResp, err := a.getRawSchemaWithProvider(ctx, providerConfig, provider)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	schema := &types.ProviderSchema{
+		Provider: &types.TypeDescription{
+			ProviderName: providerConfig.Name,
+		},
 		Resources:   make(map[string]*types.TypeDescription),
 		DataSources: make(map[string]*types.TypeDescription),
 	}
 
 	providerSchema := schemaResp.ProviderSchema()
 
+	config := providerSchema.ProviderConfigSchema()
+	schema.Provider, err = a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, "config", config, "provider")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to convert provider config schema: %w", err)
+	}
+
 	// Convert resource schemas
 	resourceSchemas := maps.Collect(providerSchema.ManagedResourceTypeSchemas())
 	for resourceType, resourceSchema := range resourceSchemas {
-		desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerName, resourceType, resourceSchema, "resource")
+		desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, resourceType, resourceSchema, "resource")
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert resource schema %s: %w", resourceType, err)
+			return nil, nil, fmt.Errorf("failed to convert resource schema %s: %w", resourceType, err)
 		}
 		schema.Resources[resourceType] = desc
 	}
@@ -142,28 +230,28 @@ func (a *OpenTofuAdapter) getSchema(ctx context.Context, providerName string) (*
 	// Convert data source schemas
 	dataSourceSchemas := maps.Collect(providerSchema.DataResourceTypeSchemas())
 	for dataSourceType, dataSourceSchema := range dataSourceSchemas {
-		desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerName, dataSourceType, dataSourceSchema, "data_source")
+		desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, dataSourceType, dataSourceSchema, "data_source")
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert data source schema %s: %w", dataSourceType, err)
+			return nil, nil, fmt.Errorf("failed to convert data source schema %s: %w", dataSourceType, err)
 		}
 		schema.DataSources[dataSourceType] = desc
 	}
 
-	// Cache the schema
-	a.schemas[providerName] = schema
-
-	return schema, nil
+	return schema, schemaResp, nil
 }
 
 // getRawSchema gets or caches the raw provider schema response
-func (a *OpenTofuAdapter) getRawSchema(ctx context.Context, providerName string) (providerops.GetProviderSchemaResponse, error) {
+func (a *OpenTofuAdapter) getRawSchema(ctx context.Context, providerConfig *types.ProviderConfig) (providerops.GetProviderSchemaResponse, error) {
 	// Check cache
-	if rawSchema, exists := a.rawSchemas[providerName]; exists {
+	if rawSchema, exists := a.rawSchemas[providerConfig.Name]; exists {
 		return rawSchema, nil
 	}
 
-	provider := a.providers[providerName]
+	return nil, errors.New("provider schema not cached, provider must be loaded first")
+}
 
+// getRawSchema gets or caches the raw provider schema response
+func (a *OpenTofuAdapter) getRawSchemaWithProvider(ctx context.Context, providerConfig *types.ProviderConfig, provider tofuprovider.GRPCPluginProvider) (providerops.GetProviderSchemaResponse, error) {
 	// Get provider schema
 	schemaReq := &providerops.GetProviderSchemaRequest{}
 	schemaResp, err := provider.GetProviderSchema(ctx, schemaReq)
@@ -176,19 +264,19 @@ func (a *OpenTofuAdapter) getRawSchema(ctx context.Context, providerName string)
 	}
 
 	// Cache the raw schema
-	a.rawSchemas[providerName] = schemaResp
+	a.rawSchemas[providerConfig.Name] = schemaResp
 
 	return schemaResp, nil
 }
 
 // getOpentofuResourceSchema gets the raw opentofu-providers Schema for a resource type
-func (a *OpenTofuAdapter) getOpentofuResourceSchema(ctx context.Context, providerName, resourceType string) (providerschema.Schema, error) {
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+func (a *OpenTofuAdapter) getOpentofuResourceSchema(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string) (providerschema.Schema, error) {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
 	// Get cached raw schema response
-	schemaResp, err := a.getRawSchema(ctx, providerName)
+	schemaResp, err := a.getRawSchema(ctx, providerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get provider schema: %w", err)
 	}
@@ -203,13 +291,13 @@ func (a *OpenTofuAdapter) getOpentofuResourceSchema(ctx context.Context, provide
 }
 
 // getOpentofuDataSourceSchema gets the raw opentofu-providers Schema for a data source type
-func (a *OpenTofuAdapter) getOpentofuDataSourceSchema(ctx context.Context, providerName, dataSourceType string) (providerschema.Schema, error) {
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+func (a *OpenTofuAdapter) getOpentofuDataSourceSchema(ctx context.Context, providerConfig *types.ProviderConfig, dataSourceType string) (providerschema.Schema, error) {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
 	// Get cached raw schema response
-	schemaResp, err := a.getRawSchema(ctx, providerName)
+	schemaResp, err := a.getRawSchema(ctx, providerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get provider schema: %w", err)
 	}
@@ -229,19 +317,14 @@ func (a *OpenTofuAdapter) getOpentofuDataSourceSchema(ctx context.Context, provi
 	return opentofuSchema, nil
 }
 
-func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerName, resourceType string, currentState *map[string]any, newConfig map[string]any) (map[string]any, error) {
+func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string, currentState *map[string]any, newConfig map[string]any) (map[string]any, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	provider := a.providers[providerName]
-
-	// Get resource schema to determine the cty.Type
-	schema, err := a.getSchema(ctx, providerName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get schema: %w", err)
-	}
+	provider := a.providers[providerConfig.Name]
+	schema := a.schemas[providerConfig.Name]
 
 	_, exists := schema.Resources[resourceType]
 	if !exists {
@@ -249,7 +332,7 @@ func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerName, resour
 	}
 
 	// Get the opentofu-providers schema directly for proper type conversion
-	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerConfig, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -310,16 +393,16 @@ func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerName, resour
 	return plannedStateMap, nil
 }
 
-func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerName, resourceType string, config map[string]any) (map[string]any, error) {
+func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string, config map[string]any) (map[string]any, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	provider := a.providers[providerName]
+	provider := a.providers[providerConfig.Name]
 
 	// Get resource schema
-	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerConfig, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -394,16 +477,16 @@ func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerName, reso
 	return finalStateMap, nil
 }
 
-func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerName, resourceType string, state map[string]any) error {
+func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string, state map[string]any) error {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return err
 	}
 
-	provider := a.providers[providerName]
+	provider := a.providers[providerConfig.Name]
 
 	// Get resource schema
-	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerConfig, resourceType)
 	if err != nil {
 		return fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -468,16 +551,16 @@ func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerName, reso
 	return nil
 }
 
-func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerName, dataSourceType string, config map[string]any) (map[string]any, error) {
+func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerConfig *types.ProviderConfig, dataSourceType string, config map[string]any) (map[string]any, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	provider := a.providers[providerName]
+	provider := a.providers[providerConfig.Name]
 
 	// Get data source schema for proper type information
-	opentofuSchema, err := a.getOpentofuDataSourceSchema(ctx, providerName, dataSourceType)
+	opentofuSchema, err := a.getOpentofuDataSourceSchema(ctx, providerConfig, dataSourceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -523,16 +606,16 @@ func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerName, data
 	return stateMap, nil
 }
 
-func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerName, resourceType, importID string) (map[string]any, error) {
+func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType, importID string) (map[string]any, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	provider := a.providers[providerName]
+	provider := a.providers[providerConfig.Name]
 
 	// Get resource schema for proper type information
-	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerConfig, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -611,16 +694,16 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerName, reso
 	return stateMap, nil
 }
 
-func (a *OpenTofuAdapter) RefreshResource(ctx context.Context, providerName, resourceType string, currentState map[string]any) (map[string]any, error) {
+func (a *OpenTofuAdapter) RefreshResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string, currentState map[string]any) (map[string]any, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	provider := a.providers[providerName]
+	provider := a.providers[providerConfig.Name]
 
 	// Get resource schema
-	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerConfig, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -672,16 +755,16 @@ func (a *OpenTofuAdapter) GetProviderVersion(ctx context.Context, providerName s
 }
 
 // UpdateResource updates an existing resource
-func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerName, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
+func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string, currentState, newConfig map[string]any) (map[string]any, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	provider := a.providers[providerName]
+	provider := a.providers[providerConfig.Name]
 
 	// Get resource schema
-	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerName, resourceType)
+	opentofuSchema, err := a.getOpentofuResourceSchema(ctx, providerConfig, resourceType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get opentofu schema: %w", err)
 	}
@@ -760,99 +843,77 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerName, reso
 }
 
 // ListResources lists all available resource types for a provider
-func (a *OpenTofuAdapter) ListResources(ctx context.Context, providerName string) ([]string, error) {
+func (a *OpenTofuAdapter) ListResources(ctx context.Context, providerConfig *types.ProviderConfig) ([]string, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	// Get cached raw schema response
-	schemaResp, err := a.getRawSchema(ctx, providerName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get provider schema: %w", err)
+	schema, exists := a.schemas[providerConfig.Name]
+	if !exists {
+		return nil, fmt.Errorf("provider schema not found for %s", providerConfig.Name)
 	}
 
-	// Extract resource type names
-	resourceSchemas := maps.Collect(schemaResp.ProviderSchema().ManagedResourceTypeSchemas())
-	resourceTypes := make([]string, 0, len(resourceSchemas))
-
-	for resourceType := range resourceSchemas {
-		resourceTypes = append(resourceTypes, resourceType)
+	resourcesTypes := make([]string, 0, len(schema.Resources))
+	for resourceType := range schema.Resources {
+		resourcesTypes = append(resourcesTypes, resourceType)
 	}
 
-	return resourceTypes, nil
+	return resourcesTypes, nil
 }
 
 // DescribeResource returns detailed information about a resource type
-func (a *OpenTofuAdapter) DescribeResource(ctx context.Context, providerName, resourceType string) (*types.TypeDescription, error) {
+func (a *OpenTofuAdapter) DescribeResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string) (*types.TypeDescription, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	// Get cached raw schema response
-	schemaResp, err := a.getRawSchema(ctx, providerName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get provider schema: %w", err)
-	}
-
-	// Find the specific resource schema
-	resourceSchemas := maps.Collect(schemaResp.ProviderSchema().ManagedResourceTypeSchemas())
-	resourceSchema, exists := resourceSchemas[resourceType]
+	schema, exists := a.schemas[providerConfig.Name]
 	if !exists {
-		return nil, fmt.Errorf("resource type %s not found in provider %s", resourceType, providerName)
+		return nil, fmt.Errorf("provider schema not found for %s", providerConfig.Name)
 	}
 
-	// Convert to TypeDescription
-	desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerName, resourceType, resourceSchema, "resource")
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert resource schema: %w", err)
+	resourceDescription, exists := schema.Resources[resourceType]
+	if !exists {
+		return nil, fmt.Errorf("resource type %s not found in provider %s", resourceType, providerConfig.Name)
 	}
 
-	return desc, nil
+	return resourceDescription, nil
 }
 
 // DescribeDataSource returns detailed information about a data source type
-func (a *OpenTofuAdapter) DescribeDataSource(ctx context.Context, providerName, dataSourceType string) (*types.TypeDescription, error) {
+func (a *OpenTofuAdapter) DescribeDataSource(ctx context.Context, providerConfig *types.ProviderConfig, dataSourceType string) (*types.TypeDescription, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	// Get cached schema
-	schema, err := a.getSchema(ctx, providerName)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check if provider has no data source schemas
-	if len(schema.DataSources) == 0 {
-		return nil, fmt.Errorf("provider has no data source schemas")
-	}
-
-	// Find the specific data source in cached schema
-	desc, exists := schema.DataSources[dataSourceType]
+	schema, exists := a.schemas[providerConfig.Name]
 	if !exists {
-		return nil, fmt.Errorf("data source type %s not found in provider %s", dataSourceType, providerName)
+		return nil, fmt.Errorf("provider schema not found for %s", providerConfig.Name)
 	}
 
-	return desc, nil
+	dataSourceDescription, exists := schema.DataSources[dataSourceType]
+	if !exists {
+		return nil, fmt.Errorf("data source type %s not found in provider %s", dataSourceType, providerConfig.Name)
+	}
+
+	return dataSourceDescription, nil
 }
 
 // ListDataSources lists all available data source types for a provider
-func (a *OpenTofuAdapter) ListDataSources(ctx context.Context, providerName string) ([]string, error) {
+func (a *OpenTofuAdapter) ListDataSources(ctx context.Context, providerConfig *types.ProviderConfig) ([]string, error) {
 	// Ensure provider is loaded
-	if err := a.LoadProvider(ctx, providerName); err != nil {
+	if err := a.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, err
 	}
 
-	// Get cached schema
-	schema, err := a.getSchema(ctx, providerName)
-	if err != nil {
-		return nil, err
+	schema, exists := a.schemas[providerConfig.Name]
+	if !exists {
+		return nil, fmt.Errorf("provider schema not found for %s", providerConfig.Name)
 	}
 
-	// Extract data source type names from cached schema
 	dataSourceTypes := make([]string, 0, len(schema.DataSources))
 	for dataSourceType := range schema.DataSources {
 		dataSourceTypes = append(dataSourceTypes, dataSourceType)
@@ -898,15 +959,15 @@ func (a *OpenTofuAdapter) findProviderBinary(dir string) (string, error) {
 	return binaryPath, nil
 }
 
-func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerName string) (string, error) {
+func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerConfig *types.ProviderConfig) (string, error) {
 	// Use the existing registry logic to download the provider
-	downloadInfo, err := a.registry.GetProviderDownload(ctx, providerName)
+	downloadInfo, err := a.registry.GetProviderDownload(ctx, providerConfig.Name, providerConfig.Version)
 	if err != nil {
 		return "", fmt.Errorf("failed to get provider download info: %w", err)
 	}
 
 	// Download and extract provider
-	binaryPath, err := a.downloadAndExtractProvider(ctx, providerName, downloadInfo.DownloadURL)
+	binaryPath, err := a.downloadAndExtractProvider(ctx, providerConfig.Name, downloadInfo.DownloadURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to download provider: %w", err)
 	}

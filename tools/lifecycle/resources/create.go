@@ -11,10 +11,20 @@ import (
 )
 
 type createArgs struct {
-	ResourceID   string         `json:"resource_id"`
-	Provider     string         `json:"provider"`
-	ResourceType string         `json:"resource_type"`
-	Config       map[string]any `json:"config"`
+	ResourceID      string         `json:"resource_id"`
+	Provider        string         `json:"provider"`
+	ResourceType    string         `json:"resource_type"`
+	Config          map[string]any `json:"config"`
+	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
+}
+
+func (args createArgs) GetProvider() *types.ProviderConfig {
+	return &types.ProviderConfig{
+		Name:    args.Provider,
+		Version: args.ProviderVersion,
+		Config:  args.ProviderConfig,
+	}
 }
 
 func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool {
@@ -89,7 +99,7 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Create resource using provider manager
-		state, err := providerManager.CreateResource(ctx, args.Provider, args.ResourceType, args.Config)
+		state, err := providerManager.CreateResource(ctx, args.GetProvider(), args.ResourceType, args.Config)
 		if err != nil {
 			err = fmt.Errorf("failed to create resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil

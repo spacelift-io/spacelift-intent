@@ -11,7 +11,15 @@ import (
 )
 
 type describeArgs struct {
-	Provider string `json:"provider"`
+	Provider string  `json:"provider"`
+	Version  *string `json:"version,omitempty"`
+}
+
+func (args describeArgs) GetProvider() *types.ProviderConfig {
+	return &types.ProviderConfig{
+		Name:    args.Provider,
+		Version: args.Version,
+	}
 }
 
 func Describe(providerManager types.ProviderManager) i.Tool {
@@ -34,28 +42,53 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
-		// List data sources using provider manager
-		dataSourceTypes, err := providerManager.ListDataSources(ctx, args.Provider)
+		versions, err := providerManager.GetProviderVersions(ctx, args.Provider)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to list data sources: %v", err)), nil
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get provider versions: %v", err)), nil
+		}
+		versionsStrings := make([]string, len(versions))
+		for i, v := range versions {
+			versionsStrings[i] = v.Version
 		}
 
-		resourceTypes, err := providerManager.ListResources(ctx, args.Provider)
-		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to list resources: %v", err)), nil
+		if args.Version != nil {
+			found := false
+			availableVersions := make([]string, 0, len(versions))
+			for _, v := range versions {
+				availableVersions = append(availableVersions, v.Version)
+				if v.Version == *args.Version {
+					found = true
+				}
+			}
+			if !found {
+				return mcp.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", *args.Version, args.Provider, availableVersions)), nil
+			}
 		}
 
-		// TODO: implement, what the actual fuck, Claude?
-		providerConfig := map[string]any{
-			"properties": map[string]any{},
-			"required":   []string{},
+		schema, confErr, err := providerManager.DescribeProvider(ctx, args.GetProvider())
+		if err != nil {
+			return mcp.NewToolResultError(fmt.Sprintf("Failed to get provider schema: %v", err)), nil
+		}
+
+		dataSourceTypes := make([]string, 0, len(schema.DataSources))
+		for dataSourceType := range schema.DataSources {
+			dataSourceTypes = append(dataSourceTypes, dataSourceType)
+		}
+
+		resourceTypes := make([]string, 0, len(schema.Resources))
+		for resourceType := range schema.Resources {
+			resourceTypes = append(resourceTypes, resourceType)
 		}
 
 		return i.RespondJSON(map[string]any{
-			"provider":          args.Provider,
-			"provider_config":   providerConfig,
+			"provider": map[string]any{
+				"provider": args.Provider,
+				"required": schema.Provider.Required,
+				"version":  schema.Version,
+			},
 			"data_source_types": dataSourceTypes,
 			"resource_types":    resourceTypes,
+			"config_error":      confErr,
 		})
 	})
 }
