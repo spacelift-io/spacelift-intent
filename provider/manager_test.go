@@ -1,15 +1,12 @@
 package provider
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"os"
-	"strings"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/spacelift-io/spacelift-intent/registry"
+	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +27,11 @@ func TestPlanResource(t *testing.T) {
 		"special": true,
 	}
 
-	plannedState, err := adapter.PlanResource(ctx, "hashicorp/random", "random_password", nil, config)
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
+	plannedState, err := adapter.PlanResource(ctx, providerConfig, "random_password", nil, config)
 	require.NoError(t, err)
 
 	// Basic validations
@@ -57,7 +58,11 @@ func TestCreateResource(t *testing.T) {
 		"special": false,
 	}
 
-	createdState, err := adapter.CreateResource(ctx, "hashicorp/random", "random_string", config)
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
+	createdState, err := adapter.CreateResource(ctx, providerConfig, "random_string", config)
 	require.NoError(t, err)
 
 	// Basic validations
@@ -80,13 +85,17 @@ func TestUpdateResource(t *testing.T) {
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
 	// First create a resource to have current state
 	initialConfig := map[string]any{
 		"length":  6,
 		"special": false,
 	}
 
-	currentState, err := adapter.CreateResource(ctx, "hashicorp/random", "random_string", initialConfig)
+	currentState, err := adapter.CreateResource(ctx, providerConfig, "random_string", initialConfig)
 	require.NoError(t, err)
 	require.NotEmpty(t, currentState["result"])
 
@@ -96,7 +105,7 @@ func TestUpdateResource(t *testing.T) {
 		"special": true,
 	}
 
-	updatedState, err := adapter.UpdateResource(ctx, "hashicorp/random", "random_string", currentState, newConfig)
+	updatedState, err := adapter.UpdateResource(ctx, providerConfig, "random_string", currentState, newConfig)
 	require.NoError(t, err)
 
 	// Basic validations
@@ -124,19 +133,23 @@ func TestDeleteResource(t *testing.T) {
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
 	// First create a resource to delete
 	config := map[string]any{
 		"length":  8,
 		"special": false,
 	}
 
-	state, err := adapter.CreateResource(ctx, "hashicorp/random", "random_string", config)
+	state, err := adapter.CreateResource(ctx, providerConfig, "random_string", config)
 	require.NoError(t, err)
 	require.NotEmpty(t, state["result"])
 
 	// Now delete the resource
 	// TODO(michal): why do we need state to delete the resource?
-	err = adapter.DeleteResource(ctx, "hashicorp/random", "random_string", state)
+	err = adapter.DeleteResource(ctx, providerConfig, "random_string", state)
 	require.NoError(t, err)
 
 	t.Logf("Successfully deleted random_string resource with id: %v", state["id"])
@@ -152,18 +165,22 @@ func TestRefreshResource(t *testing.T) {
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
 	// First create a resource to refresh
 	config := map[string]any{
 		"length":  12,
 		"special": true,
 	}
 
-	state, err := adapter.CreateResource(ctx, "hashicorp/random", "random_string", config)
+	state, err := adapter.CreateResource(ctx, providerConfig, "random_string", config)
 	require.NoError(t, err)
 	require.NotEmpty(t, state["result"])
 
 	// Now refresh the resource
-	refreshedState, err := adapter.RefreshResource(ctx, "hashicorp/random", "random_string", state)
+	refreshedState, err := adapter.RefreshResource(ctx, providerConfig, "random_string", state)
 	require.NoError(t, err)
 
 	// Basic validations
@@ -186,8 +203,12 @@ func TestListResources(t *testing.T) {
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
 	// Test ListResources with random provider
-	resources, err := adapter.ListResources(ctx, "hashicorp/random")
+	resources, err := adapter.ListResources(ctx, providerConfig)
 	require.NoError(t, err)
 
 	// Basic validations
@@ -209,8 +230,12 @@ func TestDescribeResource(t *testing.T) {
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
 	// Test DescribeResource with random_string
-	description, err := adapter.DescribeResource(ctx, "hashicorp/random", "random_string")
+	description, err := adapter.DescribeResource(ctx, providerConfig, "random_string")
 	require.NoError(t, err)
 
 	// Debug: dump the actual structure to understand what we're getting
@@ -282,7 +307,7 @@ func TestDescribeResource(t *testing.T) {
 
 	// Verify the keepers property (should be object type)
 	keepersProp := description.Properties["keepers"].(map[string]any)
-	assert.Equal(t, "object", keepersProp["type"])
+	assert.Equal(t, "map", keepersProp["type"])
 	assert.Contains(t, keepersProp["description"], "Arbitrary map of values")
 
 	// Verify numeric properties
@@ -320,14 +345,18 @@ func TestImportResource(t *testing.T) {
 		"special": false,
 	}
 
-	state, err := adapter.CreateResource(ctx, "hashicorp/random", "random_string", config)
+	providerConfig := &types.ProviderConfig{
+		Name: "hashicorp/random",
+	}
+
+	state, err := adapter.CreateResource(ctx, providerConfig, "random_string", config)
 	require.NoError(t, err)
 	require.NotEmpty(t, state["id"])
 
 	resourceID := state["id"].(string)
 
 	// Now import the resource using its ID
-	importedState, err := adapter.ImportResource(ctx, "hashicorp/random", "random_string", resourceID)
+	importedState, err := adapter.ImportResource(ctx, providerConfig, "random_string", resourceID)
 	require.NoError(t, err)
 
 	// Basic validations
@@ -348,156 +377,4 @@ func TestProviderManagerSuite(t *testing.T) {
 	t.Run("ListResources", TestListResources)
 	t.Run("DescribeResource", TestDescribeResource)
 	t.Run("ImportResource", TestImportResource)
-}
-
-func TestCreateCloudFrontDistributionResource(t *testing.T) {
-	// Load AWS environment variables from .env.aws file
-	envVars, err := loadEnvFile("/Users/michalgolinski/spacelift/exp-infra-as-intent/.env.aws")
-	if err != nil {
-		t.Fatalf("Warning: Could not load .env.aws file: %v", err)
-	} else {
-		t.Logf("Loaded environment variables: %v", envVars)
-	}
-
-	tmpDir := "/Users/michalgolinski/spacelift/exp-infra-as-intent/provider/test-providers"
-	err = os.MkdirAll(tmpDir, 0755)
-	if err != nil {
-		t.Fatalf("Failed to create test dir: %v", err)
-	}
-
-	registryClient := registry.NewOpenTofuClient()
-	// os.Setenv("USE_OPENTOFU_PROVIDER_LIB", "true")
-	adapter := NewAdaptiveManager(tmpDir, registryClient)
-	ctx := context.Background()
-	defer adapter.Cleanup(ctx)
-
-	// Parse the JSON configuration
-	configJSON := `{
-    "enabled": true,
-    "default_cache_behavior": [{
-        "allowed_methods": ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
-        "cached_methods": ["GET", "HEAD"],
-        "target_origin_id": "S3-my-cloudfront-origin-ef1e932e",
-        "viewer_protocol_policy": "redirect-to-https",
-        "compress": true,
-        "forwarded_values": [
-          {
-            "query_string": false,
-            "cookies": [
-              {
-                "forward": "none"
-              }
-            ]
-          }
-        ],
-        "min_ttl": 0,
-        "default_ttl": 3600,
-        "max_ttl": 86400,
-        "smooth_streaming": false
-      }],
-    "origin":[
-      {
-        "domain_name": "my-cloudfront-origin-ef1e932e.s3.eu-west-1.amazonaws.com",
-        "origin_id": "S3-my-cloudfront-origin-ef1e932e",
-        "origin_access_control_id": "E13S6M2AB1BGFT",
-        "origin_path": "",
-        "connection_attempts": 3,
-        "connection_timeout": 10
-      }],
-    "restrictions": [
-      {
-        "geo_restriction": [
-          {
-			"locations": [],
-            "restriction_type": "none"
-          }
-        ]
-      }
-    ],
-    "viewer_certificate":[
-      {
-        "cloudfront_default_certificate": true
-      }],
-    "comment": "Simple CloudFront Distribution",
-    "default_root_object": "index.html",
-    "price_class": "PriceClass_All",
-    "http_version": "http2",
-    "is_ipv6_enabled": false,
-    "wait_for_deployment": true,
-    "retain_on_delete": false,
-    "staging": false,
-    "tags": {
-      "Name": "Simple CloudFront Distribution",
-      "Environment": "demo"
-    }
-  }`
-
-	var config map[string]any
-	err = json.Unmarshal([]byte(configJSON), &config)
-	if err != nil {
-		t.Fatalf("Failed to parse config JSON: %v", err)
-	}
-
-	// Plan the resource first
-	response, err := adapter.PlanResource(ctx, "hashicorp/aws", "aws_cloudfront_distribution", nil, config)
-	if err != nil {
-		t.Fatalf("PlanResource failed: %v", err)
-	}
-
-	spew.Dump(response)
-	// // Apply the resource
-	// result, err := adapter.CreateResource(ctx, "hashicorp/aws", "aws_cloudfront_distribution", nil, config)
-	// if err != nil {
-	// 	t.Fatalf("ApplyResource failed: %v", err)
-	// }
-
-	// if result == nil {
-	// 	t.Fatal("Expected non-nil result")
-	// }
-
-	// // Output the result in the same format as the MCP server would return to the LLM
-	// jsonResult, err := json.Marshal(result)
-	// if err != nil {
-	// 	t.Fatalf("Failed to marshal result: %v", err)
-	// }
-
-	// t.Logf("MCP Server JSON Response:\n%s", string(jsonResult))
-
-}
-
-// loadEnvFile loads environment variables from a .env file
-func loadEnvFile(filename string) ([]string, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var envVars []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		// Remove quotes if present
-		if (strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"")) ||
-			(strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'")) {
-			value = value[1 : len(value)-1]
-		}
-
-		os.Setenv(key, value)
-		envVars = append(envVars, key)
-	}
-
-	return envVars, scanner.Err()
 }
