@@ -16,6 +16,9 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	go build $(GO_BUILD_FLAGS) -o $(BUILD_DIR)/spacelift-intent ./cmd/spacelift-intent
 
+build-docker:
+	docker build . -t spacelift-intent:latest -f Dockerfile
+
 build-legacy:
 	@mkdir -p $(BUILD_DIR)
 	GO_TAGS=legacy_plugin go build $(GO_BUILD_FLAGS) -tags=legacy_plugin -o $(BUILD_DIR)/spacelift-intent-legacy ./cmd/spacelift-intent
@@ -69,6 +72,7 @@ help:
 	@echo "Build targets:"
 	@echo "  all                    - Build all binaries"
 	@echo "  build                  - Build binary"
+	@echo "  build-docker           - Build Docker image"
 	@echo ""
 	@echo "Test targets:"
 	@echo "  test                   - Run tests"
