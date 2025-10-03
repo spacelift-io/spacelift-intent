@@ -20,7 +20,7 @@ Welcome to the Spacelift Intent open-source project! Intent is an MCP Server, th
 
 **Prerequisites**:
 - A compatible [MCP host](https://modelcontextprotocol.io/docs/learn/architecture#concepts-of-mcp) that supports **stdio** servers.
-- The newest binary from the Releases page.
+- The newest binary from the [Releases](https://github.com/spacelift-io/spacelift-intent/releases) page.
 
 ### VSCode
 
