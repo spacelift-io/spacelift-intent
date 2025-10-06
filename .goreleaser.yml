@@ -75,7 +75,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/spacelift-io/spacelift-intent
     description: "Spacelift Intent MCP Server"
-    license: "MIT"
+    license: "Apache-2.0"
 
 release:
   draft: false
