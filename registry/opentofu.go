@@ -31,25 +31,28 @@ type openTofuClient struct {
 	versionsURLTemplate string
 }
 
-// NewOpenTofuClient creates a new OpenTofu registry client
+// NewOpenTofuClient creates a new OpenTofu registry client.
+// The client can be configured using environment variables:
+//   - OPENTOFU_REGISTRY_URL: Override the default registry URL (default: https://registry.opentofu.org)
+//   - OPENTOFU_API_URL: Override the default API URL (default: https://api.opentofu.org)
 func NewOpenTofuClient() types.RegistryClient {
 
-	registryURL := registryURL
-	opentofuAPIURL := apiURL
+	regURL := registryURL
+	apiBaseURL := apiURL
 
 	if envRegistryURL := os.Getenv("OPENTOFU_REGISTRY_URL"); envRegistryURL != "" {
-		registryURL = envRegistryURL
+		regURL = envRegistryURL
 	}
 
-	if envOpentofuAPIURL := os.Getenv("OPENTOFU_API_URL"); envOpentofuAPIURL != "" {
-		opentofuAPIURL = envOpentofuAPIURL
+	if envAPIURL := os.Getenv("OPENTOFU_API_URL"); envAPIURL != "" {
+		apiBaseURL = envAPIURL
 	}
 
 	return &openTofuClient{
 		client:              &http.Client{},
-		searchURLTemplate:   opentofuAPIURL + searchTemplate,
-		downloadURLTemplate: registryURL + downloadTemplate,
-		versionsURLTemplate: registryURL + versionsTemplate,
+		searchURLTemplate:   apiBaseURL + searchTemplate,
+		downloadURLTemplate: regURL + downloadTemplate,
+		versionsURLTemplate: regURL + versionsTemplate,
 	}
 }
 
