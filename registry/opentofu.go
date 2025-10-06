@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strings"
 
@@ -14,27 +15,47 @@ import (
 )
 
 const (
-	registryURL         = "https://registry.opentofu.org"
-	searchURLTemplate   = "https://api.opentofu.org/registry/docs/search?q=%s"
-	downloadURLTemplate = registryURL + "/v1/providers/%s/%s/%s/download/%s/%s"
-	versionsURLTemplate = registryURL + "/v1/providers/%s/%s/versions"
+	registryURL      = "https://registry.opentofu.org"
+	apiURL           = "https://api.opentofu.org"
+	searchTemplate   = "/registry/docs/search?q=%s"
+	downloadTemplate = "/v1/providers/%s/%s/%s/download/%s/%s"
+	versionsTemplate = "/v1/providers/%s/%s/versions"
 )
 
 // openTofuClient implements Client for OpenTofu registry
 type openTofuClient struct {
 	client *http.Client
+
+	searchURLTemplate   string
+	downloadURLTemplate string
+	versionsURLTemplate string
 }
 
 // NewOpenTofuClient creates a new OpenTofu registry client
 func NewOpenTofuClient() types.RegistryClient {
+
+	registryURL := registryURL
+	opentofuAPIURL := apiURL
+
+	if envRegistryURL := os.Getenv("OPENTOFU_REGISTRY_URL"); envRegistryURL != "" {
+		registryURL = envRegistryURL
+	}
+
+	if envOpentofuAPIURL := os.Getenv("OPENTOFU_API_URL"); envOpentofuAPIURL != "" {
+		opentofuAPIURL = envOpentofuAPIURL
+	}
+
 	return &openTofuClient{
-		client: &http.Client{},
+		client:              &http.Client{},
+		searchURLTemplate:   opentofuAPIURL + searchTemplate,
+		downloadURLTemplate: registryURL + downloadTemplate,
+		versionsURLTemplate: registryURL + versionsTemplate,
 	}
 }
 
 // SearchProviders searches for providers in the registry
 func (c *openTofuClient) SearchProviders(ctx context.Context, query string) ([]types.ProviderSearchResult, error) {
-	searchURL := fmt.Sprintf(searchURLTemplate, url.QueryEscape(query))
+	searchURL := fmt.Sprintf(c.searchURLTemplate, url.QueryEscape(query))
 
 	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
 	if err != nil {
@@ -132,7 +153,7 @@ func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName s
 	}
 
 	// Get download URL
-	downloadURL := fmt.Sprintf(downloadURLTemplate, namespace, providerType, selectedVersion, runtime.GOOS, runtime.GOARCH)
+	downloadURL := fmt.Sprintf(c.downloadURLTemplate, namespace, providerType, selectedVersion, runtime.GOOS, runtime.GOARCH)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
@@ -183,7 +204,7 @@ func (c *openTofuClient) Download(ctx context.Context, url string) (io.ReadClose
 
 // getProviderVersions gets available versions for a provider
 func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, providerType string) ([]types.ProviderVersionInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(versionsURLTemplate, namespace, providerType), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(c.versionsURLTemplate, namespace, providerType), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create versions request: %w", err)
 	}
