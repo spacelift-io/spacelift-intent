@@ -67,6 +67,16 @@ checksum:
 changelog:
   use: github-native
 
+brews:
+  - name: "{{ .ProjectName }}"
+    repository:
+      owner: "spacelift-io"
+      name: "homebrew-spacelift"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/spacelift-io/spacelift-intent
+    description: "Spacelift Intent MCP Server"
+    license: "MIT"
+
 release:
   draft: false
   prerelease: auto
