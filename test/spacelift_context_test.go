@@ -53,6 +53,9 @@ func TestSpaceliftProviderDescribe(t *testing.T) {
 
 // TestSpaceliftContextResourceDescribe tests describing the spacelift_context resource
 func TestSpaceliftContextResourceDescribe(t *testing.T) {
+	// Load Spacelift credentials from .env.spacelift
+	testhelper.LoadSpaceliftCredentials(t)
+
 	th := testhelper.NewTestHelper(t, getSharedTestDir(t))
 	defer th.Cleanup()
 
