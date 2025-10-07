@@ -2,7 +2,7 @@
 
 ![Intent](img/intent.png)
 
-Welcome to the Spacelift Intent open-source project! Intent is an MCP Server, that lets infrastructure engineers describe what they need in natural language and provisions it directly through calling provider APIs — skipping the Terraform/OpenTofu configuration layer entirely. It’s early and experimental, so expect rough edges, but that’s where you come in: try it out, tell us what works (and what doesn’t), and join the conversation in GitHub Discussions. This repo hosts the open-source core; there's also a fully managed version, built into Spacelift Platform - check out Spacelift Intent HERE.
+Welcome to the Spacelift Intent open-source project! Intent is an MCP Server, that lets infrastructure engineers describe what they need in natural language and provisions it directly through calling provider APIs — skipping the Terraform/OpenTofu configuration layer entirely. It’s early and experimental, so expect rough edges, but that’s where you come in: try it out, tell us what works (and what doesn’t), and join the conversation in GitHub Discussions. This repo hosts the open-source core; there's also a fully managed version, built into Spacelift Platform - check out Spacelift Intent [HERE](https://spacelift.io/intent).
 
 ![Intent Demo](img/spacelift-intent-demo.gif)
 
