@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -29,7 +28,7 @@ Dependencies:
 1. from_resource_id = instance; to_resource_id = instance_profile
 2. from_resource_id = instance_profile; to_resource_id = ec2-role
 ec2-role is a dependency for the instance_profile, and instance_profile is a dependent for ec2-role (relies on it)`,
-		Annotations: i.ToolAnnotations("Explicitly add a dependency between two resources", i.IDEMPOTENT),
+		Annotations: i.ToolAnnotations("Explicitly add a dependency between two resources", i.Idempotent),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

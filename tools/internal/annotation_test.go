@@ -9,10 +9,10 @@ import (
 func TestAnnotationHintConstants(t *testing.T) {
 	// Test that constants have expected bit flag values
 	expectedValues := map[AnnotationHint]uint8{
-		READONLY:    1, // 1 << 0 = 1
-		DESTRUCTIVE: 2, // 1 << 1 = 2
-		IDEMPOTENT:  4, // 1 << 2 = 4
-		OPEN_WORLD:  8, // 1 << 3 = 8
+		Readonly:    1, // 1 << 0 = 1
+		Destructive: 2, // 1 << 1 = 2
+		Idempotent:  4, // 1 << 2 = 4
+		OpenWorld:   8, // 1 << 3 = 8
 	}
 
 	for hint, expected := range expectedValues {
@@ -44,7 +44,7 @@ func TestToolAnnotations(t *testing.T) {
 		{
 			name:  "readonly hint",
 			title: "Read Tool",
-			hints: READONLY,
+			hints: Readonly,
 			expectedResult: mcp.ToolAnnotation{
 				Title:           "Read Tool",
 				ReadOnlyHint:    mcp.ToBoolPtr(true),
@@ -56,7 +56,7 @@ func TestToolAnnotations(t *testing.T) {
 		{
 			name:  "destructive hint",
 			title: "Delete Tool",
-			hints: DESTRUCTIVE,
+			hints: Destructive,
 			expectedResult: mcp.ToolAnnotation{
 				Title:           "Delete Tool",
 				ReadOnlyHint:    mcp.ToBoolPtr(false),
@@ -68,7 +68,7 @@ func TestToolAnnotations(t *testing.T) {
 		{
 			name:  "idempotent hint",
 			title: "Create Tool",
-			hints: IDEMPOTENT,
+			hints: Idempotent,
 			expectedResult: mcp.ToolAnnotation{
 				Title:           "Create Tool",
 				ReadOnlyHint:    mcp.ToBoolPtr(false),
@@ -80,7 +80,7 @@ func TestToolAnnotations(t *testing.T) {
 		{
 			name:  "open world hint",
 			title: "Search Tool",
-			hints: OPEN_WORLD,
+			hints: OpenWorld,
 			expectedResult: mcp.ToolAnnotation{
 				Title:           "Search Tool",
 				ReadOnlyHint:    mcp.ToBoolPtr(false),
@@ -92,7 +92,7 @@ func TestToolAnnotations(t *testing.T) {
 		{
 			name:  "multiple hints combined",
 			title: "Multi Tool",
-			hints: READONLY | IDEMPOTENT,
+			hints: Readonly | Idempotent,
 			expectedResult: mcp.ToolAnnotation{
 				Title:           "Multi Tool",
 				ReadOnlyHint:    mcp.ToBoolPtr(true),
@@ -104,7 +104,7 @@ func TestToolAnnotations(t *testing.T) {
 		{
 			name:  "all hints combined",
 			title: "All Tool",
-			hints: READONLY | DESTRUCTIVE | IDEMPOTENT | OPEN_WORLD,
+			hints: Readonly | Destructive | Idempotent | OpenWorld,
 			expectedResult: mcp.ToolAnnotation{
 				Title:           "All Tool",
 				ReadOnlyHint:    mcp.ToBoolPtr(true),
@@ -144,21 +144,21 @@ func TestToolAnnotations(t *testing.T) {
 
 func TestBitMaskOperations(t *testing.T) {
 	// Test that bitwise operations work correctly
-	combined := READONLY | DESTRUCTIVE
+	combined := Readonly | Destructive
 
-	if combined&READONLY == 0 {
+	if combined&Readonly == 0 {
 		t.Error("Expected READONLY to be set in combined flags")
 	}
 
-	if combined&DESTRUCTIVE == 0 {
+	if combined&Destructive == 0 {
 		t.Error("Expected DESTRUCTIVE to be set in combined flags")
 	}
 
-	if combined&IDEMPOTENT != 0 {
+	if combined&Idempotent != 0 {
 		t.Error("Expected IDEMPOTENT to not be set in combined flags")
 	}
 
-	if combined&OPEN_WORLD != 0 {
+	if combined&OpenWorld != 0 {
 		t.Error("Expected OPEN_WORLD to not be set in combined flags")
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -42,7 +41,7 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"Analysis format with CREATE section, risk assessment, and next steps. For provider " +
 			"argument mismatches, use Provider Argument Count Mismatch format with auto-resolution " +
 			"strategy. \n\nHint: may want to add a dependency if applicable.",
-		Annotations: i.ToolAnnotations("Create a new managed resource", i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("Create a new managed resource", i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -36,7 +35,7 @@ func Operations(storage types.Storage) i.Tool {
 			"Include both human-readable summary and JSON format for programmatic access. " +
 			"\n\nCritical for tracking resource lifecycle events and maintaining operational " +
 			"visibility of infrastructure changes.",
-		Annotations: i.ToolAnnotations("List operations on resources", i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("List operations on resources", i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

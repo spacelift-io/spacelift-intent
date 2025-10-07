@@ -5,9 +5,8 @@ import (
 	"maps"
 
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerschema"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/spacelift-io/spacelift-intent/types"
+	"github.com/zclconf/go-cty/cty"
 )
 
 type SchemaConverter struct{}
@@ -168,7 +167,7 @@ func (sc *SchemaConverter) blockTypeToObjectType(blockType providerschema.Nested
 }
 
 // convertSchemaToTypeDescription converts a providerschema.Schema to types.TypeDescription
-func (sc *SchemaConverter) convertSchemaToTypeDescription(providerName, typeName string, schema providerschema.Schema, schemaType string) (*types.TypeDescription, error) {
+func (sc *SchemaConverter) convertSchemaToTypeDescription(providerName, typeName string, schema providerschema.Schema, schemaType string) *types.TypeDescription {
 	properties := make(map[string]any)
 	required := []string{}
 
@@ -238,7 +237,7 @@ func (sc *SchemaConverter) convertSchemaToTypeDescription(providerName, typeName
 		Description:  description,
 		Properties:   properties,
 		Required:     required,
-	}, nil
+	}
 }
 
 // ctyTypeToString converts cty.Type to string representation

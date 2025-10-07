@@ -13,7 +13,6 @@ func SetEnvVars(t *testing.T, envVars map[string]string) {
 		if err := os.Setenv(key, value); err != nil {
 			t.Fatalf("Failed to set environment variable %s: %v", key, err)
 		}
-		//t.Logf("Set environment variable: %s", key)
 	}
 }
 

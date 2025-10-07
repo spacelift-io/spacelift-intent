@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -34,7 +33,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 			"arrays to null or [], objects to null or {}. " +
 			"\n\nError Handling: When encountering argument mismatches, use Provider Argument " +
 			"Count Mismatch format showing expected vs received counts with auto-resolution strategy.",
-		Annotations: i.ToolAnnotations("Get schema for a specific resource type", i.READONLY|i.IDEMPOTENT),
+		Annotations: i.ToolAnnotations("Get schema for a specific resource type", i.Readonly|i.Idempotent),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

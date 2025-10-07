@@ -4,15 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
-	_ "modernc.org/sqlite"
-
 	"github.com/spacelift-io/spacelift-intent/types"
+	_ "modernc.org/sqlite"
 )
 
 // sqliteStorage implements types.Storage using SQLite
@@ -44,8 +44,9 @@ func NewSQLiteStorage(dbPath string) (*sqliteStorage, error) {
 
 // createTables creates the necessary database tables
 func (s *sqliteStorage) createTables() error {
+	ctx := context.Background()
 	// Enable foreign key constraints
-	if _, err := s.db.Exec("PRAGMA foreign_keys = ON"); err != nil {
+	if _, err := s.db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
 		return fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
@@ -88,7 +89,7 @@ func (s *sqliteStorage) createTables() error {
 	CREATE INDEX IF NOT EXISTS idx_timeline_operation ON timeline_events(operation);
 	`
 
-	_, err := s.db.Exec(schema)
+	_, err := s.db.ExecContext(ctx, schema)
 	if err != nil {
 		return err
 	}
@@ -113,7 +114,7 @@ func (s *sqliteStorage) createTables() error {
 	CREATE INDEX IF NOT EXISTS idx_operations_provider ON operations(provider);
 	`
 
-	_, err = s.db.Exec(operationsSchema)
+	_, err = s.db.ExecContext(ctx, operationsSchema)
 	if err != nil {
 		return err
 	}
@@ -171,7 +172,7 @@ func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRe
 	var stateJSON string
 	err := row.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
@@ -620,7 +621,7 @@ func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID str
 		&operation.CreatedAt,
 		&failed)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
