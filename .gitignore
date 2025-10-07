@@ -59,3 +59,7 @@ Thumbs.db
 .env
 spacelift-intent
 .state/
+
+# Test artifacts
+provider/test-providers/
+test/test-cache/

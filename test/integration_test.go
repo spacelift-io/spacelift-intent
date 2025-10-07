@@ -365,7 +365,7 @@ func TestDataSourceDescribe(t *testing.T) {
 	// The hashicorp/random provider doesn't have data sources, so this is expected to fail
 	if result.IsError {
 		content := th.GetTextContent(result)
-		assert.Contains(t, content, "no data source schemas", "Expected no data source schemas error")
+		assert.Contains(t, content, "data source type random_string not found", "Expected data source not found error")
 		t.Logf("Data source describe failed as expected: %s", content)
 	} else {
 		th.AssertToolSuccess(result, err, "provider-datasources-describe")
