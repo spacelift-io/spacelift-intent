@@ -87,7 +87,7 @@ Add the following configuration to your *Claude Desktop* config file:
             "args": [
                 "run", "-i", "--rm",
                 "-e", "DB_DIR=/state",
-                "-v", "${HOME}/.spacelift-intent:/state",
+                "-v", "<USER-HOME-DIR>/.spacelift-intent:/state",
                 "ghcr.io/spacelift-io/spacelift-intent:latest"
             ]
         }
@@ -137,7 +137,7 @@ Example *Claude Desktop* configuration for **AWS provider**:
             "args": [
                 "run", "-i", "--rm",
                 "-e", "DB_DIR=/state",
-                "-v", "${HOME}/.spacelift-intent:/state",
+                "-v", "<USER-HOME-DIR>/.spacelift-intent:/state",
                 "-e", "AWS_ACCESS_KEY_ID=accesskeyid",
                 "-e", "AWS_SECRET_ACCESS_KEY=accesskey",
                 "-e", "AWS_REGION=us-west-1",
@@ -194,7 +194,7 @@ Example *Claude Desktop* configuration:
                 "run", "-i", "--rm",
                 "-e", "TMP_DIR=/tmp",
                 "-e", "DB_DIR=/state",
-                "-v", "${HOME}/.spacelift-intent:/state",
+                "-v", "<USER-HOME-DIR>/.spacelift-intent:/state",
                 "ghcr.io/spacelift-io/spacelift-intent:latest"
             ]
         }
