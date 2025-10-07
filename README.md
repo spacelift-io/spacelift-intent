@@ -22,7 +22,30 @@ Welcome to the Spacelift Intent open-source project! Intent is an MCP Server, th
 
 **Prerequisites**:
 - A compatible [MCP host](https://modelcontextprotocol.io/docs/learn/architecture#concepts-of-mcp) that supports **stdio** servers.
-- The newest binary from the [Releases](https://github.com/spacelift-io/spacelift-intent/releases) page.
+
+### Docker (Recommended)
+
+The easiest way to run Intent is using Docker:
+
+```bash
+docker pull ghcr.io/spacelift-io/spacelift-intent:latest
+```
+
+Configure your MCP host to use the Docker container. See the [Configuration](#configuration) section for provider credentials setup.
+
+### Homebrew
+
+Install via Homebrew:
+
+```bash
+brew install spacelift-io/tap/spacelift-intent
+```
+
+### Manual Installation
+
+Download the newest binary from the [Releases](https://github.com/spacelift-io/spacelift-intent/releases) page.
+
+## MCP Host Configuration
 
 Currently, we support running the server in:
 
@@ -30,11 +53,21 @@ Currently, we support running the server in:
 
 > Enable [MCP support](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_enable-mcp-support-in-vs-code)
 
-Add following configuration to your VSCode config file:
-Run:
-
+**Using Docker:**
 ```bash
-code --add-mcp "{\"name\":\"spacelift-intent\",\"command\": \"<path-to-your-binary>\"}"
+code --add-mcp "{\"name\":\"spacelift-intent\", \
+  \"command\": \"docker\", \
+  \"args\": [ \
+    \"run\", \"-i\", \"--rm\", \
+    \"-e\", \"DB_DIR=/state\", \
+    \"-v\", \"${HOME}/.spacelift-intent:/state\", \
+    \"ghcr.io/spacelift-io/spacelift-intent:latest\" \
+  ]}"
+```
+
+**Using Homebrew or local binary:**
+```bash
+code --add-mcp "{\"name\":\"spacelift-intent\",\"command\": \"spacelift-intent\"}"
 ```
 
 ### Claude Desktop
@@ -45,11 +78,29 @@ Add the following configuration to your *Claude Desktop* config file:
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 **Linux**: `~/.config/claude/claude_desktop_config.json`
 
+**Using Docker:**
 ```json
 {
     "mcpServers": {
         "spacelift-intent": {
-            "command": "<path-to-your-binary>"
+            "command": "docker",
+            "args": [
+                "run", "-i", "--rm",
+                "-e", "DB_DIR=/state",
+                "-v", "${HOME}/.spacelift-intent:/state",
+                "ghcr.io/spacelift-io/spacelift-intent:latest"
+            ]
+        }
+    }
+}
+```
+
+**Using Homebrew or local binary:**
+```json
+{
+    "mcpServers": {
+        "spacelift-intent": {
+            "command": "spacelift-intent"
         }
     }
 }
@@ -57,29 +108,70 @@ Add the following configuration to your *Claude Desktop* config file:
 
 ### Claude Code
 
+**Using Docker:**
 ```bash
-claude mcp add spacelift-intent -- <path-to-your-binary>
+claude mcp add spacelift-intent -- \
+  docker run -i --rm \
+  -e DB_DIR=/state \
+  -v ${HOME}/.spacelift-intent:/state \
+  ghcr.io/spacelift-io/spacelift-intent:latest
+```
+
+**Using Homebrew or local binary:**
+```bash
+claude mcp add spacelift-intent -- spacelift-intent
 ```
 
 ## Configuration
 
-Before you start to provision new resources, you need to provide credentials for the provider of your choice. You can do that by suplementing environment variables, the same way you'd do it for Terraform/OpenTofu configuration.
+Before you start to provision new resources, you need to provide credentials for the provider of your choice. You can do that by supplementing environment variables, the same way you'd do it for Terraform/OpenTofu configuration.
 
 Example *Claude Desktop* configuration for **AWS provider**:
+
+**Using Docker:**
 ```json
 {
     "mcpServers": {
         "spacelift-intent": {
-            "command": "<path-to-your-binary>",
+            "command": "docker",
+            "args": [
+                "run", "-i", "--rm",
+                "-e", "DB_DIR=/state",
+                "-v", "${HOME}/.spacelift-intent:/state",
+                "-e", "AWS_ACCESS_KEY_ID=accesskeyid",
+                "-e", "AWS_SECRET_ACCESS_KEY=accesskey",
+                "-e", "AWS_REGION=us-west-1",
+                "ghcr.io/spacelift-io/spacelift-intent:latest"
+            ]
+        }
+    }
+}
+```
+
+**Using local binary:**
+
+```json
+{
+    "mcpServers": {
+        "spacelift-intent": {
+            "command": "spacelift-intent",
             "env": {
                 "AWS_ACCESS_KEY_ID": "anaccesskey",
                 "AWS_SECRET_ACCESS_KEY": "asecretkey",
-                "AWS_REGION": "us-west-2"
+                "AWS_REGION": "us-west-1"
             }
         }
     }
 }
 ```
+
+### State Persistence
+
+> **⚠️ IMPORTANT:** Intent stores all infrastructure state in a SQLite database. If you remove the database directory or Docker volume, **you will lose all state** and Intent will no longer be able to manage your infrastructure resources. The actual cloud resources will remain, but Intent will not know about them.
+
+**For Docker users:** Always mount a volume to persist the database (using `-v ${HOME}/.spacelift-intent:/state` as shown in examples above). Without a volume mount, state will be lost when the container stops.
+
+**For local binary users:** The default state directory is `./.state/` in your current working directory. Back it up regularly or configure a custom location using `DB_DIR`.
 
 ### Flags
 
@@ -91,11 +183,31 @@ You can modify the behavior of Intent server by setting up:
 | `--db-dir` | `DB_DIR` | `./.state/` | Directory containing DB files for persistent state |
 
 Example *Claude Desktop* configuration:
+
+**Using Docker:**
 ```json
 {
     "mcpServers": {
         "spacelift-intent": {
-            "command": "<path-to-your-binary>",
+            "command": "docker",
+            "args": [
+                "run", "-i", "--rm",
+                "-e", "TMP_DIR=/tmp",
+                "-e", "DB_DIR=/state",
+                "-v", "${HOME}/.spacelift-intent:/state",
+                "ghcr.io/spacelift-io/spacelift-intent:latest"
+            ]
+        }
+    }
+}
+```
+
+**Using local binary:**
+```json
+{
+    "mcpServers": {
+        "spacelift-intent": {
+            "command": "spacelift-intent",
             "env": {
                 "TMP_DIR": "/custom/tmp/path",
                 "DB_DIR": "/custom/db/path"
