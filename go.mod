@@ -4,7 +4,6 @@ go 1.25.1
 
 require (
 	github.com/apparentlymart/opentofu-providers v0.0.0-20250724234429-1ac1eb53eced
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-plugin v1.6.3
@@ -24,6 +23,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
@@ -63,4 +63,4 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace github.com/apparentlymart/opentofu-providers => github.com/spacelift-io/opentofu-providers v0.0.0-20250910231457-c4dacf9efea1
+replace github.com/apparentlymart/opentofu-providers => github.com/spacelift-io/opentofu-providers v0.0.0-20251007124643-3afa7fd7ccd7
