@@ -148,33 +148,6 @@ Example *Claude Desktop* configuration for **AWS provider**:
 }
 ```
 
-**Using Docker with aws-vault (avoids storing credentials in plain text):**
-```json
-{
-    "mcpServers": {
-        "spacelift-intent": {
-            "command": "aws-vault",
-            "args": [
-                "exec",
-                "<your-profile-name>",
-                "--",
-                "docker",
-                "run",
-                "-i",
-                "--rm",
-                "-e", "AWS_ACCESS_KEY_ID",
-                "-e", "AWS_SECRET_ACCESS_KEY",
-                "-e", "AWS_SESSION_TOKEN",
-                "-e", "AWS_REGION",
-                "-e", "DB_DIR=/state",
-                "-v", "${HOME}/.spacelift-intent:/state",
-                "ghcr.io/spacelift-io/spacelift-intent:latest"
-            ]
-        }
-    }
-}
-```
-
 **Using local binary:**
 
 ```json
