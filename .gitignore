@@ -57,6 +57,7 @@ Thumbs.db
 *.temp
 .claude
 .env
+spacelift-intent
 .state/
 
 # Test artifacts
