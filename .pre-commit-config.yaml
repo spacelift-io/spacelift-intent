@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine
-
-RUN apk add --no-cache ca-certificates
-
-COPY spacelift-intent /usr/local/bin/spacelift-intent
-ENTRYPOINT ["/usr/local/bin/spacelift-intent"]
+repos:
+- repo: https://github.com/google/addlicense
+  rev: v1.2.0
+  hooks:
+  - id: addlicense
+    args: [ "-c", "Spacelift, Inc." ]
+    files: \.go$
