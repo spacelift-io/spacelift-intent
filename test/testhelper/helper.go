@@ -17,6 +17,7 @@ import (
 	"github.com/spacelift-io/spacelift-intent/storage"
 	"github.com/spacelift-io/spacelift-intent/tools"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
 )
 
 // TestHelper encapsulates test setup and utilities
