@@ -23,6 +23,7 @@ const (
 	searchTemplate   = "/registry/docs/search?q=%s"
 	downloadTemplate = "/v1/providers/%s/%s/%s/download/%s/%s"
 	versionsTemplate = "/v1/providers/%s/%s/versions"
+	userAgent        = "spacelift-intent"
 )
 
 // openTofuClient implements Client for OpenTofu registry
@@ -67,6 +68,7 @@ func (c *openTofuClient) SearchProviders(ctx context.Context, query string) ([]t
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -165,6 +167,7 @@ func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName s
 	if err != nil {
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -194,6 +197,7 @@ func (c *openTofuClient) Download(ctx context.Context, url string) (io.ReadClose
 	if err != nil {
 		return nil, fmt.Errorf("failed to create download request: %w", err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -214,6 +218,7 @@ func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, pro
 	if err != nil {
 		return nil, fmt.Errorf("failed to create versions request: %w", err)
 	}
+	req.Header.Set("User-Agent", userAgent)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
