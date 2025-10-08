@@ -38,7 +38,7 @@ Configure your MCP host to use the Docker container. See the [Configuration](#co
 Install via Homebrew:
 
 ```bash
-brew install spacelift-io/tap/spacelift-intent
+brew install spacelift-io/spacelift/spacelift-intent
 ```
 
 ### Manual Installation
