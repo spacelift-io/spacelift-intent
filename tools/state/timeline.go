@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -21,7 +20,7 @@ func Timeline(storage types.Storage) i.Tool {
 			"operation summaries, and impact analysis. " +
 			"\n\nCritical for tracking who made changes, when they occurred, and understanding " +
 			"deployment patterns for operational excellence.",
-		Annotations: i.ToolAnnotations("Get state timeline events", i.READONLY|i.IDEMPOTENT),
+		Annotations: i.ToolAnnotations("Get state timeline events", i.Readonly|i.Idempotent),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

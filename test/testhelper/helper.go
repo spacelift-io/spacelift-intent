@@ -12,12 +12,11 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/mcptest"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/stretchr/testify/require"
-
 	"github.com/spacelift-io/spacelift-intent/provider"
 	"github.com/spacelift-io/spacelift-intent/registry"
 	"github.com/spacelift-io/spacelift-intent/storage"
 	"github.com/spacelift-io/spacelift-intent/tools"
+	"github.com/stretchr/testify/require"
 )
 
 // TestHelper encapsulates test setup and utilities

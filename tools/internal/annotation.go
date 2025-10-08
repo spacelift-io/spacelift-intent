@@ -8,14 +8,14 @@ import "github.com/mark3labs/mcp-go/mcp"
 type AnnotationHint uint8
 
 const (
-	// READONLY indicates the tool only reads data and doesn't modify state.
-	READONLY AnnotationHint = 1 << iota
-	// DESTRUCTIVE indicates the tool may irreversibly modify or delete data.
-	DESTRUCTIVE
-	// IDEMPOTENT indicates the tool can be safely called multiple times with the same result.
-	IDEMPOTENT
-	// OPEN_WORLD indicates the tool may access external resources or have side effects.
-	OPEN_WORLD
+	// Readonly indicates the tool only reads data and doesn't modify state.
+	Readonly AnnotationHint = 1 << iota
+	// Destructive indicates the tool may irreversibly modify or delete data.
+	Destructive
+	// Idempotent indicates the tool can be safely called multiple times with the same result.
+	Idempotent
+	// OpenWorld indicates the tool may access external resources or have side effects.
+	OpenWorld
 )
 
 // ToolAnnotations creates an MCP tool annotation with the specified title and hint flags.
@@ -24,9 +24,9 @@ const (
 func ToolAnnotations(title string, hints AnnotationHint) mcp.ToolAnnotation {
 	return mcp.ToolAnnotation{
 		Title:           title,
-		ReadOnlyHint:    mcp.ToBoolPtr(hints&READONLY != 0),
-		DestructiveHint: mcp.ToBoolPtr(hints&DESTRUCTIVE != 0),
-		IdempotentHint:  mcp.ToBoolPtr(hints&IDEMPOTENT != 0),
-		OpenWorldHint:   mcp.ToBoolPtr(hints&OPEN_WORLD != 0),
+		ReadOnlyHint:    mcp.ToBoolPtr(hints&Readonly != 0),
+		DestructiveHint: mcp.ToBoolPtr(hints&Destructive != 0),
+		IdempotentHint:  mcp.ToBoolPtr(hints&Idempotent != 0),
+		OpenWorldHint:   mcp.ToBoolPtr(hints&OpenWorld != 0),
 	}
 }

@@ -16,9 +16,8 @@ import (
 	"github.com/apparentlymart/opentofu-providers/tofuprovider"
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerops"
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerschema"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/spacelift-io/spacelift-intent/types"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // NewOpenTofuAdapter creates a new adapter using the opentofu-providers library
@@ -212,28 +211,19 @@ func (a *OpenTofuAdapter) getSchemaWithProvider(ctx context.Context, providerCon
 	providerSchema := schemaResp.ProviderSchema()
 
 	config := providerSchema.ProviderConfigSchema()
-	schema.Provider, err = a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, "config", config, "provider")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to convert provider config schema: %w", err)
-	}
+	schema.Provider = a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, "config", config, "provider")
 
 	// Convert resource schemas
 	resourceSchemas := maps.Collect(providerSchema.ManagedResourceTypeSchemas())
 	for resourceType, resourceSchema := range resourceSchemas {
-		desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, resourceType, resourceSchema, "resource")
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert resource schema %s: %w", resourceType, err)
-		}
+		desc := a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, resourceType, resourceSchema, "resource")
 		schema.Resources[resourceType] = desc
 	}
 
 	// Convert data source schemas
 	dataSourceSchemas := maps.Collect(providerSchema.DataResourceTypeSchemas())
 	for dataSourceType, dataSourceSchema := range dataSourceSchemas {
-		desc, err := a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, dataSourceType, dataSourceSchema, "data_source")
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to convert data source schema %s: %w", dataSourceType, err)
-		}
+		desc := a.schemaConverter.convertSchemaToTypeDescription(providerConfig.Name, dataSourceType, dataSourceSchema, "data_source")
 		schema.DataSources[dataSourceType] = desc
 	}
 
@@ -241,7 +231,7 @@ func (a *OpenTofuAdapter) getSchemaWithProvider(ctx context.Context, providerCon
 }
 
 // getRawSchema gets or caches the raw provider schema response
-func (a *OpenTofuAdapter) getRawSchema(ctx context.Context, providerConfig *types.ProviderConfig) (providerops.GetProviderSchemaResponse, error) {
+func (a *OpenTofuAdapter) getRawSchema(_ context.Context, providerConfig *types.ProviderConfig) (providerops.GetProviderSchemaResponse, error) {
 	// Check cache
 	if rawSchema, exists := a.rawSchemas[providerConfig.Name]; exists {
 		return rawSchema, nil
@@ -338,28 +328,28 @@ func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerConfig *type
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	resourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Convert current state to cty.Value
 	var priorState providerschema.DynamicValueIn
 	if currentState != nil && len(*currentState) > 0 {
-		priorStateCty, err := a.converter.MapToCtyValue(*currentState, resourceType_cty)
+		priorStateCty, err := a.converter.MapToCtyValue(*currentState, resourceTypeCty)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert prior state: %w", err)
 		}
-		priorState = providerschema.NewDynamicValue(priorStateCty, resourceType_cty)
+		priorState = providerschema.NewDynamicValue(priorStateCty, resourceTypeCty)
 	} else {
 		// For new resources, use null value of the proper type instead of NoDynamicValue
-		nullStateCty := cty.NullVal(resourceType_cty)
-		priorState = providerschema.NewDynamicValue(nullStateCty, resourceType_cty)
+		nullStateCty := cty.NullVal(resourceTypeCty)
+		priorState = providerschema.NewDynamicValue(nullStateCty, resourceTypeCty)
 	}
 
 	// Convert new config to cty.Value
-	configCty, err := a.converter.MapToCtyValue(newConfig, resourceType_cty)
+	configCty, err := a.converter.MapToCtyValue(newConfig, resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert config: %w", err)
 	}
-	config := providerschema.NewDynamicValue(configCty, resourceType_cty)
+	config := providerschema.NewDynamicValue(configCty, resourceTypeCty)
 
 	// Create plan request
 	planReq := &providerops.PlanManagedResourceChangeRequest{
@@ -380,7 +370,7 @@ func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerConfig *type
 	}
 
 	// Convert planned state back to map
-	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode planned state: %w", err)
 	}
@@ -408,18 +398,18 @@ func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	resourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Convert config to cty.Value
-	configCty, err := a.converter.MapToCtyValue(config, resourceType_cty)
+	configCty, err := a.converter.MapToCtyValue(config, resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert config: %w", err)
 	}
-	configDV := providerschema.NewDynamicValue(configCty, resourceType_cty)
+	configDV := providerschema.NewDynamicValue(configCty, resourceTypeCty)
 
 	// For new resources, use null value as prior state
-	nullStateCty := cty.NullVal(resourceType_cty)
-	priorState := providerschema.NewDynamicValue(nullStateCty, resourceType_cty)
+	nullStateCty := cty.NullVal(resourceTypeCty)
+	priorState := providerschema.NewDynamicValue(nullStateCty, resourceTypeCty)
 
 	// First plan the resource
 	planReq := &providerops.PlanManagedResourceChangeRequest{
@@ -439,11 +429,11 @@ func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert planned state from DynamicValueOut to DynamicValueIn
-	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode planned state: %w", err)
 	}
-	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceType_cty)
+	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceTypeCty)
 
 	// Now apply the resource
 	applyReq := &providerops.ApplyManagedResourceChangeRequest{
@@ -464,7 +454,7 @@ func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert final state back to map
-	finalStateCty, err := applyResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	finalStateCty, err := applyResp.PlannedNewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode final state: %w", err)
 	}
@@ -492,19 +482,19 @@ func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	resourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Convert current state to cty.Value
-	currentStateCty, err := a.converter.MapToCtyValue(state, resourceType_cty)
+	currentStateCty, err := a.converter.MapToCtyValue(state, resourceTypeCty)
 	if err != nil {
 		return fmt.Errorf("failed to convert current state: %w", err)
 	}
-	priorState := providerschema.NewDynamicValue(currentStateCty, resourceType_cty)
+	priorState := providerschema.NewDynamicValue(currentStateCty, resourceTypeCty)
 
 	// For deletion, use null value as config and proposed new state
-	nullStateCty := cty.NullVal(resourceType_cty)
-	emptyConfig := providerschema.NewDynamicValue(nullStateCty, resourceType_cty)
-	proposedNewState := providerschema.NewDynamicValue(nullStateCty, resourceType_cty)
+	nullStateCty := cty.NullVal(resourceTypeCty)
+	emptyConfig := providerschema.NewDynamicValue(nullStateCty, resourceTypeCty)
+	proposedNewState := providerschema.NewDynamicValue(nullStateCty, resourceTypeCty)
 
 	// First plan the deletion
 	planReq := &providerops.PlanManagedResourceChangeRequest{
@@ -524,11 +514,11 @@ func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert planned state from DynamicValueOut to DynamicValueIn
-	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return fmt.Errorf("failed to decode planned deletion state: %w", err)
 	}
-	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceType_cty)
+	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceTypeCty)
 
 	// Now apply the deletion
 	applyReq := &providerops.ApplyManagedResourceChangeRequest{
@@ -566,14 +556,14 @@ func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	dataSourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	dataSourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Convert config to cty.Value
-	configCty, err := a.converter.MapToCtyValue(config, dataSourceType_cty)
+	configCty, err := a.converter.MapToCtyValue(config, dataSourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert config: %w", err)
 	}
-	configDV := providerschema.NewDynamicValue(configCty, dataSourceType_cty)
+	configDV := providerschema.NewDynamicValue(configCty, dataSourceTypeCty)
 
 	// Create read request
 	readReq := &providerops.ReadDataResourceRequest{
@@ -593,7 +583,7 @@ func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert state back to map
-	stateCty, err := readResp.State().AsCtyValue(dataSourceType_cty)
+	stateCty, err := readResp.State().AsCtyValue(dataSourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode state: %w", err)
 	}
@@ -621,7 +611,7 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	resourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Create import request
 	importReq := &providerops.ImportManagedResourceStateRequest{
@@ -659,11 +649,11 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerConfig *ty
 	// This ensures we capture the full resource data, not just what import returned
 
 	// First convert the imported state from DynamicValueOut to DynamicValueIn
-	importedStateCty, err := firstResource.State().AsCtyValue(resourceType_cty)
+	importedStateCty, err := firstResource.State().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode imported state: %w", err)
 	}
-	importedStateDV := providerschema.NewDynamicValue(importedStateCty, resourceType_cty)
+	importedStateDV := providerschema.NewDynamicValue(importedStateCty, resourceTypeCty)
 
 	readReq := &providerops.ReadManagedResourceRequest{
 		ResourceType:     resourceType,
@@ -681,7 +671,7 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert the complete current state back to map
-	stateCty, err := readResp.NewState().AsCtyValue(resourceType_cty)
+	stateCty, err := readResp.NewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode current state: %w", err)
 	}
@@ -709,14 +699,14 @@ func (a *OpenTofuAdapter) RefreshResource(ctx context.Context, providerConfig *t
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	resourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Convert current state to cty.Value
-	currentStateCty, err := a.converter.MapToCtyValue(currentState, resourceType_cty)
+	currentStateCty, err := a.converter.MapToCtyValue(currentState, resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert current state: %w", err)
 	}
-	currentStateDV := providerschema.NewDynamicValue(currentStateCty, resourceType_cty)
+	currentStateDV := providerschema.NewDynamicValue(currentStateCty, resourceTypeCty)
 
 	// Create refresh request - for OpenTofu, refresh is typically done through ReadManagedResource
 	refreshReq := &providerops.ReadManagedResourceRequest{
@@ -736,7 +726,7 @@ func (a *OpenTofuAdapter) RefreshResource(ctx context.Context, providerConfig *t
 	}
 
 	// Convert refreshed state back to map
-	refreshedStateCty, err := refreshResp.NewState().AsCtyValue(resourceType_cty)
+	refreshedStateCty, err := refreshResp.NewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode refreshed state: %w", err)
 	}
@@ -770,21 +760,21 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert opentofu-providers schema to proper cty.Type
-	resourceType_cty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
+	resourceTypeCty := a.schemaConverter.opentofuSchemaToObjectType(opentofuSchema)
 
 	// Convert current state to cty.Value
-	currentStateCty, err := a.converter.MapToCtyValue(currentState, resourceType_cty)
+	currentStateCty, err := a.converter.MapToCtyValue(currentState, resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert current state: %w", err)
 	}
-	priorState := providerschema.NewDynamicValue(currentStateCty, resourceType_cty)
+	priorState := providerschema.NewDynamicValue(currentStateCty, resourceTypeCty)
 
 	// Convert new config to cty.Value
-	configCty, err := a.converter.MapToCtyValue(newConfig, resourceType_cty)
+	configCty, err := a.converter.MapToCtyValue(newConfig, resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert config: %w", err)
 	}
-	configDV := providerschema.NewDynamicValue(configCty, resourceType_cty)
+	configDV := providerschema.NewDynamicValue(configCty, resourceTypeCty)
 
 	// Plan the update
 	planReq := &providerops.PlanManagedResourceChangeRequest{
@@ -804,11 +794,11 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert planned state from DynamicValueOut to DynamicValueIn
-	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	plannedStateCty, err := planResp.PlannedNewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode planned state: %w", err)
 	}
-	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceType_cty)
+	plannedStateDV := providerschema.NewDynamicValue(plannedStateCty, resourceTypeCty)
 
 	// Now apply the update
 	applyReq := &providerops.ApplyManagedResourceChangeRequest{
@@ -829,7 +819,7 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *ty
 	}
 
 	// Convert final state back to map
-	finalStateCty, err := applyResp.PlannedNewState().AsCtyValue(resourceType_cty)
+	finalStateCty, err := applyResp.PlannedNewState().AsCtyValue(resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode final state: %w", err)
 	}
@@ -976,16 +966,16 @@ func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerConfig *
 }
 
 // downloadAndExtractProvider downloads and extracts a provider binary
-func (pm *OpenTofuAdapter) downloadAndExtractProvider(ctx context.Context, providerName, downloadURL string) (string, error) {
+func (a *OpenTofuAdapter) downloadAndExtractProvider(ctx context.Context, providerName, downloadURL string) (string, error) {
 
 	// Create provider directory
-	providerDir := filepath.Join(pm.tmpDir, strings.ReplaceAll(providerName, "/", "_"))
+	providerDir := filepath.Join(a.tmpDir, strings.ReplaceAll(providerName, "/", "_"))
 	if err := os.MkdirAll(providerDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create provider directory: %w", err)
 	}
 
 	// Check if binary already exists
-	binaryPath, err := pm.findProviderBinary(providerDir)
+	binaryPath, err := a.findProviderBinary(providerDir)
 	if err == nil {
 		// Binary exists, check if it's executable
 		if info, err := os.Stat(binaryPath); err == nil && info.Mode()&0111 != 0 {
@@ -995,17 +985,17 @@ func (pm *OpenTofuAdapter) downloadAndExtractProvider(ctx context.Context, provi
 
 	// Download zip file
 	zipPath := filepath.Join(providerDir, "provider.zip")
-	if err := pm.downloadFile(ctx, downloadURL, zipPath); err != nil {
+	if err := a.downloadFile(ctx, downloadURL, zipPath); err != nil {
 		return "", fmt.Errorf("failed to download provider: %w", err)
 	}
 
 	// Extract zip file
-	if err := pm.extractZip(zipPath, providerDir); err != nil {
+	if err := a.extractZip(zipPath, providerDir); err != nil {
 		return "", fmt.Errorf("failed to extract provider: %w", err)
 	}
 
 	// Find and make binary executable
-	binaryPath, err = pm.findProviderBinary(providerDir)
+	binaryPath, err = a.findProviderBinary(providerDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to find provider binary: %w", err)
 	}
@@ -1037,8 +1027,8 @@ func (a *OpenTofuAdapter) formatDiagnostics(diags providerops.Diagnostics) strin
 }
 
 // downloadFile downloads a file from URL to local path
-func (pm *OpenTofuAdapter) downloadFile(ctx context.Context, url, path string) error {
-	resp, err := pm.registry.Download(ctx, url)
+func (a *OpenTofuAdapter) downloadFile(ctx context.Context, url, path string) error {
+	resp, err := a.registry.Download(ctx, url)
 	if err != nil {
 		return err
 	}
@@ -1055,7 +1045,7 @@ func (pm *OpenTofuAdapter) downloadFile(ctx context.Context, url, path string) e
 }
 
 // extractZip extracts a zip file to a destination directory
-func (pm *OpenTofuAdapter) extractZip(src, dest string) error {
+func (a *OpenTofuAdapter) extractZip(src, dest string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err

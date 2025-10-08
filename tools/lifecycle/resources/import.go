@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -41,7 +40,7 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"format showing imported resources. On errors, use OpenTofu MCP Server error format " +
 			"with import-specific troubleshooting guidance. " +
 			"\n\nEssential for migrating from manual infrastructure to managed infrastructure as code.",
-		Annotations: i.ToolAnnotations("Import an external resource resource", i.IDEMPOTENT|i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("Import an external resource resource", i.Idempotent|i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -103,14 +102,14 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		// Import resource using provider manager
 		state, err := providerManager.ImportResource(ctx, args.GetProvider(), args.ResourceType, args.ImportID)
 		if err != nil {
-			err = fmt.Errorf("Failed to import resource: %w", err)
+			err = fmt.Errorf("failed to import resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case - for import, this indicates the resource doesn't exist
 		// TODO: Figure out if we want to handle empty state case for import here or in the providerManager
 		if len(state) == 0 {
-			err = fmt.Errorf("Resource with ID '%s' does not exist or returned empty state", args.ImportID)
+			err = fmt.Errorf("resource with ID '%s' does not exist or returned empty state", args.ImportID)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
@@ -135,7 +134,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		ctx = context.WithValue(ctx, types.ChangedByContextKey, "mcp-user")
 
 		if err = storage.SaveState(ctx, record); err != nil {
-			err = fmt.Errorf("Failed to save state: %w", err)
+			err = fmt.Errorf("failed to save state: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 

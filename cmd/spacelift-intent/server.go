@@ -8,7 +8,6 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-
 	"github.com/spacelift-io/spacelift-intent/instructions"
 	"github.com/spacelift-io/spacelift-intent/provider"
 	"github.com/spacelift-io/spacelift-intent/registry"
@@ -102,7 +101,7 @@ func (s *Server) start(ctx context.Context) error {
 }
 
 // stop gracefully shuts down the server
-func (s *Server) stop(ctx context.Context) error {
+func (s *Server) stop(ctx context.Context) {
 	log.Println("Stopping standalone server")
 
 	if s.providerManager != nil {
@@ -116,7 +115,6 @@ func (s *Server) stop(ctx context.Context) error {
 	}
 
 	log.Println("Standalone server stopped")
-	return nil
 }
 
 // AddTool registers an MCP tool handler

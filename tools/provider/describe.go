@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -26,7 +25,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("provider-describe"),
 		Description: "Show the provider configuration, supported resources and supported data sources. Use this tool after finding a provider to understand its capabilities before resource creation - essential for discovering available resource types, data sources, and configuration requirements. Critical for the Configuration Phase workflow to validate resource definitions and ensure proper provider argument handling.",
-		Annotations: i.ToolAnnotations("Show the provider config", i.READONLY|i.IDEMPOTENT),
+		Annotations: i.ToolAnnotations("Show the provider config", i.Readonly|i.Idempotent),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

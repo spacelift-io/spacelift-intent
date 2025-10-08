@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/spacelift-io/spacelift-intent/types"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestSQLiteStorage(t *testing.T) (*sqliteStorage, context.Context) {

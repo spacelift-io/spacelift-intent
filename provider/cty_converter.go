@@ -163,7 +163,8 @@ func (c *CtyConverter) ctyValueToAny(val cty.Value) (any, error) {
 func (c *CtyConverter) convertPrimitive(data map[string]any, ty cty.Type) (cty.Value, error) {
 	// Check for unknown value marker first
 	if len(data) == 1 {
-		if unknown, exists := data["__cty_unknown__"]; exists && unknown == true {
+		unknown, exists := data["__cty_unknown__"]
+		if exists && unknown == true {
 			return cty.UnknownVal(ty), nil
 		}
 	}
@@ -226,11 +227,12 @@ func (c *CtyConverter) convertObject(data map[string]any, ty cty.Type) (cty.Valu
 
 	for attrName, attrType := range attrTypes {
 		if val, exists := data[attrName]; exists {
-			if val == nil {
+			switch val {
+			case nil:
 				values[attrName] = cty.NullVal(attrType)
-			} else if val == "__cty_unknown__" {
+			case "__cty_unknown__":
 				values[attrName] = cty.UnknownVal(attrType)
-			} else {
+			default:
 				// Convert the value based on its type
 				ctyVal, err := c.convertValue(val, attrType)
 				if err != nil {
@@ -258,11 +260,12 @@ func (c *CtyConverter) convertMap(data map[string]any, ty cty.Type) (cty.Value, 
 	values := make(map[string]cty.Value)
 
 	for key, val := range data {
-		if val == nil {
+		switch val {
+		case nil:
 			values[key] = cty.NullVal(elemType)
-		} else if val == "__cty_unknown__" {
+		case "__cty_unknown__":
 			values[key] = cty.UnknownVal(elemType)
-		} else {
+		default:
 			ctyVal, err := c.convertValue(val, elemType)
 			if err != nil {
 				return cty.NilVal, fmt.Errorf("failed to convert map element %s: %w", key, err)
@@ -293,11 +296,12 @@ func (c *CtyConverter) convertList(data map[string]any, ty cty.Type) (cty.Value,
 			continue
 		}
 
-		if val == nil {
+		switch val {
+		case nil:
 			values = append(values, cty.NullVal(elemType))
-		} else if val == "__cty_unknown__" {
+		case "__cty_unknown__":
 			values = append(values, cty.UnknownVal(elemType))
-		} else {
+		default:
 			ctyVal, err := c.convertValue(val, elemType)
 			if err != nil {
 				return cty.NilVal, fmt.Errorf("failed to convert list element %d: %w", i, err)
@@ -320,11 +324,12 @@ func (c *CtyConverter) convertSet(data map[string]any, ty cty.Type) (cty.Value, 
 	var values []cty.Value
 
 	for _, val := range data {
-		if val == nil {
+		switch val {
+		case nil:
 			values = append(values, cty.NullVal(elemType))
-		} else if val == "__cty_unknown__" {
+		case "__cty_unknown__":
 			values = append(values, cty.UnknownVal(elemType))
-		} else {
+		default:
 			ctyVal, err := c.convertValue(val, elemType)
 			if err != nil {
 				return cty.NilVal, fmt.Errorf("failed to convert set element: %w", err)
@@ -374,9 +379,7 @@ func (c *CtyConverter) convertValue(val any, ty cty.Type) (cty.Value, error) {
 	if slice, ok := val.([]any); ok {
 		// Convert []any to []interface{} for compatibility
 		interfaceSlice := make([]interface{}, len(slice))
-		for i, item := range slice {
-			interfaceSlice[i] = item
-		}
+		copy(interfaceSlice, slice)
 		return c.convertSlice(interfaceSlice, ty)
 	}
 

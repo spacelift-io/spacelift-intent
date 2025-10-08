@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -25,7 +24,7 @@ func Get(storage types.Storage) i.Tool {
 			"dependency mapping, and impact analysis formatting. " +
 			"\n\nCritical for Safety Protocol to verify state consistency and review what " +
 			"resources will be affected by changes.",
-		Annotations: i.ToolAnnotations("Get resource state", i.READONLY|i.IDEMPOTENT),
+		Annotations: i.ToolAnnotations("Get resource state", i.Readonly|i.Idempotent),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

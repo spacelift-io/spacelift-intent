@@ -4,12 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/spacelift-io/spacelift-intent/test/testhelper"
+	"github.com/stretchr/testify/require"
 )
-
-
 
 // TestCloudFrontDistributionCreate tests creating a CloudFront distribution using lifecycle-resources-create
 func TestCloudFrontDistributionCreate(t *testing.T) {

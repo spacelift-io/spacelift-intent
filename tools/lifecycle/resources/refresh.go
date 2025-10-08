@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -26,7 +25,7 @@ func Refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 			"(FRESH/DRIFTED/DELETED). Use structured format showing detected changes and their " +
 			"impact. \n\nCritical for monitoring resource health and identifying external " +
 			"changes that may affect infrastructure consistency.",
-		Annotations: i.ToolAnnotations("Refresh an existing resource", i.IDEMPOTENT|i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("Refresh an existing resource", i.Idempotent|i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -77,7 +76,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		// Refresh the resource using the provider manager
 		refreshedState, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
-			err = fmt.Errorf("Failed to refresh resource: %w", err)
+			err = fmt.Errorf("failed to refresh resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
@@ -113,7 +112,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 			operation.ProposedState = refreshedState
 
 			if err = storage.SaveState(ctx, updatedRecord); err != nil {
-				err = fmt.Errorf("Failed to save refreshed state: %w", err)
+				err = fmt.Errorf("failed to save refreshed state: %w", err)
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 

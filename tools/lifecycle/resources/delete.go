@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -25,7 +24,7 @@ func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"complexity analysis. Require explicit 'CONFIRM' response before proceeding. " +
 			"\n\nPresentation: Present results using Infrastructure Configuration Analysis " +
 			"format with REMOVE section.",
-		Annotations: i.ToolAnnotations("Delete a managed resource", i.DESTRUCTIVE|i.IDEMPOTENT|i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("Delete a managed resource", i.Destructive|i.Idempotent|i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -36,10 +35,10 @@ func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			},
 			Required: []string{"resource_id"},
 		},
-	}, Handler: delete(storage, providerManager)}
+	}, Handler: deleteResource(storage, providerManager)}
 }
 
-func delete(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
+func deleteResource(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args deleteArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
@@ -76,7 +75,7 @@ func delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		// Delete the resource using the provider manager
 		err = providerManager.DeleteResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
-			err = fmt.Errorf("Failed to delete resource: %w", err)
+			err = fmt.Errorf("failed to delete resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
@@ -86,7 +85,7 @@ func delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		// Delete the state from database (dependencies automatically cleaned up via CASCADE)
 		if err = storage.DeleteState(ctx, args.ResourceID); err != nil {
-			err = fmt.Errorf("Failed to delete state from database: %w", err)
+			err = fmt.Errorf("failed to delete state from database: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -37,7 +36,7 @@ func Read(providerManager types.ProviderManager) i.Tool {
 			"\n\nArgument Handling: Set unknown/optional arguments to appropriate defaults: " +
 			"strings to null or '', booleans to null or false, numbers to null or 0, arrays " +
 			"to null or [], objects to null or {}. Ensure ALL required arguments are provided.",
-		Annotations: i.ToolAnnotations("Read data from a data source", i.READONLY|i.IDEMPOTENT|i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("Read data from a data source", i.Readonly|i.Idempotent|i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

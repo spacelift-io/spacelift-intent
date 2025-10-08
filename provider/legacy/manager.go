@@ -11,13 +11,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
+	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	"github.com/spacelift-io/spacelift-intent/types"
-
-	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 )
 
 var ErrorBinaryNotFound = fmt.Errorf("provider binary not found")
@@ -38,24 +36,24 @@ func NewManager(tmpDir string, registry types.RegistryClient) types.ProviderMana
 	}
 }
 
-func (a *DefaultManager) DescribeProvider(ctx context.Context, providerConfig *types.ProviderConfig) (*types.ProviderSchema, *string, error) {
-	if err := a.LoadProvider(ctx, providerConfig); err != nil {
+func (pm *DefaultManager) DescribeProvider(ctx context.Context, providerConfig *types.ProviderConfig) (*types.ProviderSchema, *string, error) {
+	if err := pm.LoadProvider(ctx, providerConfig); err != nil {
 		return nil, nil, err
 	}
 
-	schema, err := a.getSchema(ctx, providerConfig)
+	schema, err := pm.getSchema(ctx, providerConfig)
 	return schema, nil, err
 }
 
-func (a *DefaultManager) getSchema(ctx context.Context, provider *types.ProviderConfig) (*types.ProviderSchema, error) {
+func (pm *DefaultManager) getSchema(ctx context.Context, provider *types.ProviderConfig) (*types.ProviderSchema, error) {
 	// Get resources list
-	resources, err := a.ListResources(ctx, provider)
+	resources, err := pm.ListResources(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list resources: %w", err)
 	}
 
 	// Get data sources list
-	dataSources, err := a.ListDataSources(ctx, provider)
+	dataSources, err := pm.ListDataSources(ctx, provider)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list data sources: %w", err)
 	}
@@ -65,20 +63,17 @@ func (a *DefaultManager) getSchema(ctx context.Context, provider *types.Provider
 		DataSources: make(map[string]*types.TypeDescription),
 	}
 
-	sh, err := a.getProviderSchema(ctx, provider)
+	sh, err := pm.getProviderSchema(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
 
-	desc, err := a.describeConfig(ctx, provider, sh)
-	if err != nil {
-		return nil, fmt.Errorf("failed to describe provider config: %w", err)
-	}
+	desc := pm.describeConfig(ctx, provider, sh)
 	schema.Provider = desc
 
 	// Build resource schemas
 	for _, resourceType := range resources {
-		desc, err := a.describeResource(ctx, provider, resourceType, sh)
+		desc, err := pm.describeResource(ctx, provider, resourceType, sh)
 		if err != nil {
 			return nil, fmt.Errorf("failed to describe resource %s: %w", resourceType, err)
 		}
@@ -87,7 +82,7 @@ func (a *DefaultManager) getSchema(ctx context.Context, provider *types.Provider
 
 	// Build data source schemas
 	for _, dataSourceType := range dataSources {
-		desc, err := a.describeDataSource(ctx, provider, dataSourceType, sh)
+		desc, err := pm.describeDataSource(ctx, provider, dataSourceType, sh)
 		if err != nil {
 			return nil, fmt.Errorf("failed to describe data source %s: %w", dataSourceType, err)
 		}
@@ -95,7 +90,7 @@ func (a *DefaultManager) getSchema(ctx context.Context, provider *types.Provider
 	}
 
 	// Get provider version
-	version, err := a.GetProviderVersion(ctx, provider.Name)
+	version, err := pm.GetProviderVersion(ctx, provider.Name)
 	if err == nil {
 		schema.Version = version
 	}
@@ -413,13 +408,13 @@ func (pm *DefaultManager) ListResources(ctx context.Context, provider *types.Pro
 	return resources, nil
 }
 
-func (pm *DefaultManager) describeConfig(_ context.Context, provider *types.ProviderConfig, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
+func (pm *DefaultManager) describeConfig(_ context.Context, provider *types.ProviderConfig, schema *pb.GetProviderSchema_Response) *types.TypeDescription {
 	properties, required := pm.convertSchema(schema.Provider)
 	return &types.TypeDescription{
 		ProviderName: provider.Name,
 		Properties:   properties,
 		Required:     required,
-	}, nil
+	}
 }
 
 // DescribeResource gets the schema and documentation for a resource type
@@ -432,8 +427,8 @@ func (pm *DefaultManager) DescribeResource(ctx context.Context, provider *types.
 	return pm.describeResource(ctx, provider, resourceType, schema)
 }
 
-// DescribeResource gets the schema and documentation for a resource type
-func (pm *DefaultManager) describeResource(ctx context.Context, provider *types.ProviderConfig, resourceType string, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
+// describeResource gets the schema and documentation for a resource type
+func (pm *DefaultManager) describeResource(_ context.Context, provider *types.ProviderConfig, resourceType string, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
 	if err := pm.validateResourceExists(schema, provider.Name, resourceType); err != nil {
 		return nil, err
 	}
@@ -773,8 +768,8 @@ func (pm *DefaultManager) DescribeDataSource(ctx context.Context, provider *type
 	return pm.describeDataSource(ctx, provider, dataSourceType, schema)
 }
 
-// DescribeDataSource gets the schema and documentation for a data source type
-func (pm *DefaultManager) describeDataSource(ctx context.Context, provider *types.ProviderConfig, dataSourceType string, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
+// describeDataSource gets the schema and documentation for a data source type
+func (pm *DefaultManager) describeDataSource(_ context.Context, provider *types.ProviderConfig, dataSourceType string, schema *pb.GetProviderSchema_Response) (*types.TypeDescription, error) {
 	if err := pm.validateDataSourceExists(schema, provider.Name, dataSourceType); err != nil {
 		return nil, err
 	}

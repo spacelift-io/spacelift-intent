@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -38,7 +39,7 @@ type SpaceliftContext struct {
 func getJWTToken(endpoint, keyID, keySecret string) (string, error) {
 	// Ensure endpoint has /graphql suffix
 	if !strings.HasSuffix(endpoint, "/graphql") {
-		endpoint = endpoint + "/graphql"
+		endpoint += "/graphql"
 	}
 	// Create GraphQL mutation to exchange API key for JWT (matching the working curl structure)
 	mutation := `
@@ -65,7 +66,7 @@ func getJWTToken(endpoint, keyID, keySecret string) (string, error) {
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", fmt.Errorf("failed to create HTTP request: %v", err)
 	}
@@ -119,7 +120,7 @@ func ValidateContextExistsByName(t *testing.T, contextName string) (*SpaceliftCo
 
 	// Ensure endpoint has /graphql suffix
 	if !strings.HasSuffix(endpoint, "/graphql") {
-		endpoint = endpoint + "/graphql"
+		endpoint += "/graphql"
 	}
 
 	// Exchange API key for JWT token
@@ -152,7 +153,7 @@ func ValidateContextExistsByName(t *testing.T, contextName string) (*SpaceliftCo
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
 	}
@@ -213,8 +214,8 @@ func ValidateContextExistsByName(t *testing.T, contextName string) (*SpaceliftCo
 	return nil, fmt.Errorf("context with name '%s' not found", contextName)
 }
 
-// ValidateContextExistsById validates that a context with the given ID exists
-func ValidateContextExistsById(t *testing.T, contextID string) (*SpaceliftContext, error) {
+// ValidateContextExistsByID validates that a context with the given ID exists
+func ValidateContextExistsByID(t *testing.T, contextID string) (*SpaceliftContext, error) {
 	// Get required environment variables
 	endpoint := os.Getenv("SPACELIFT_API_KEY_ENDPOINT")
 	keyID := os.Getenv("SPACELIFT_API_KEY_ID")
@@ -226,7 +227,7 @@ func ValidateContextExistsById(t *testing.T, contextID string) (*SpaceliftContex
 
 	// Ensure endpoint has /graphql suffix
 	if !strings.HasSuffix(endpoint, "/graphql") {
-		endpoint = endpoint + "/graphql"
+		endpoint += "/graphql"
 	}
 
 	// Exchange API key for JWT token
@@ -262,7 +263,7 @@ func ValidateContextExistsById(t *testing.T, contextID string) (*SpaceliftContex
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
 	}
@@ -321,11 +322,11 @@ func CleanupContextByName(t *testing.T, contextName string) error {
 		return nil
 	}
 
-	return CleanupContextById(t, context.ID)
+	return CleanupContextByID(t, context.ID)
 }
 
-// CleanupContextById deletes a context by ID via Spacelift API and validates cleanup succeeded
-func CleanupContextById(t *testing.T, contextID string) error {
+// CleanupContextByID deletes a context by ID via Spacelift API and validates cleanup succeeded
+func CleanupContextByID(t *testing.T, contextID string) error {
 	// Get required environment variables
 	endpoint := os.Getenv("SPACELIFT_API_KEY_ENDPOINT")
 	keyID := os.Getenv("SPACELIFT_API_KEY_ID")
@@ -337,7 +338,7 @@ func CleanupContextById(t *testing.T, contextID string) error {
 
 	// Ensure endpoint has /graphql suffix
 	if !strings.HasSuffix(endpoint, "/graphql") {
-		endpoint = endpoint + "/graphql"
+		endpoint += "/graphql"
 	}
 
 	// Exchange API key for JWT token
@@ -370,7 +371,7 @@ func CleanupContextById(t *testing.T, contextID string) error {
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)
 	}
@@ -414,7 +415,7 @@ func CleanupContextById(t *testing.T, contextID string) error {
 	t.Logf("Successfully deleted context via Spacelift API: ID=%s", contextID)
 
 	// Validate that the context no longer exists
-	_, err = ValidateContextExistsById(t, contextID)
+	_, err = ValidateContextExistsByID(t, contextID)
 	if err != nil {
 		// Expected error - context should not exist anymore
 		t.Logf("✅ Validated context cleanup: context with ID '%s' no longer exists", contextID)
@@ -437,7 +438,7 @@ func UpdateContextDescription(t *testing.T, contextID, newDescription string) er
 
 	// Ensure endpoint has /graphql suffix
 	if !strings.HasSuffix(endpoint, "/graphql") {
-		endpoint = endpoint + "/graphql"
+		endpoint += "/graphql"
 	}
 
 	// Exchange API key for JWT token
@@ -458,7 +459,7 @@ func UpdateContextDescription(t *testing.T, contextID, newDescription string) er
 	`
 
 	// First get the current context to get its name (required for update)
-	currentContext, err := ValidateContextExistsById(t, contextID)
+	currentContext, err := ValidateContextExistsByID(t, contextID)
 	if err != nil {
 		return fmt.Errorf("failed to get current context: %v", err)
 	}
@@ -479,7 +480,7 @@ func UpdateContextDescription(t *testing.T, contextID, newDescription string) er
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %v", err)
 	}
@@ -530,7 +531,7 @@ func CreateContextViaAPI(t *testing.T, name, description string) (*SpaceliftCont
 
 	// Ensure endpoint has /graphql suffix
 	if !strings.HasSuffix(endpoint, "/graphql") {
-		endpoint = endpoint + "/graphql"
+		endpoint += "/graphql"
 	}
 
 	// Exchange API key for JWT token
@@ -567,7 +568,7 @@ func CreateContextViaAPI(t *testing.T, name, description string) (*SpaceliftCont
 	}
 
 	// Create HTTP request
-	httpReq, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(reqBody))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", endpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
-
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -29,7 +28,7 @@ func Update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"\n\nPresentation: Present results using Infrastructure Configuration Analysis " +
 			"format with MODIFY section and risk assessment. On errors, use OpenTofu MCP Server " +
 			"error format with root cause analysis and recommended fixes.",
-		Annotations: i.ToolAnnotations("Update resource with a new configuration", i.IDEMPOTENT|i.OPEN_WORLD),
+		Annotations: i.ToolAnnotations("Update resource with a new configuration", i.Idempotent|i.OpenWorld),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -85,7 +84,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		// Update the resource using the provider manager
 		newState, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
 		if err != nil {
-			err = fmt.Errorf("Failed to update resource: %w", err)
+			err = fmt.Errorf("failed to update resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
@@ -109,7 +108,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		ctx = context.WithValue(ctx, types.ChangedByContextKey, "mcp-user")
 
 		if err = storage.SaveState(ctx, updatedRecord); err != nil {
-			err = fmt.Errorf("Failed to save updated state: %w", err)
+			err = fmt.Errorf("failed to save updated state: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
