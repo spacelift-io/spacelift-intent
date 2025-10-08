@@ -27,7 +27,7 @@ func TestRabbitMQBrokerLifecycle(t *testing.T) {
 	}
 
 	// Use extended timeout for MQ broker operations (40 minutes)
-	th := testhelper.NewTestHelperWithTimeout(t, 40*time.Minute, "/Users/michalgolinski/spacelift/intent/worktrees/spacelift-intent-cty/test/rabbitmq")
+	th := testhelper.NewTestHelperWithTimeout(t, 40*time.Minute)
 	defer th.Cleanup()
 
 	const resourceID = "ultimate-rabbit"
