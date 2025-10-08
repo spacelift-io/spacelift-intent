@@ -1,0 +1,37 @@
+name: 🥸 Lint
+
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint the code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v5
+
+      - name: Mark source directory as safe.
+        run: git config --global --add safe.directory $GITHUB_WORKSPACE
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with: { go-version-file: go.mod }
+
+      - name: Check formatting using gofmt
+        run: gofmt -s -l -d .
+
+      - name: Check for suspicious constructs using "go vet"
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          args: --verbose
+          version: v2.5
