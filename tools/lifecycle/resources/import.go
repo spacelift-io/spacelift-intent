@@ -17,7 +17,7 @@ type importArgs struct {
 	DestinationID   string         `json:"destination_id"`
 	Provider        string         `json:"provider"`
 	ResourceType    string         `json:"resource_type"`
-	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderVersion string         `json:"provider_version"`
 	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
 }
 
@@ -33,7 +33,9 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-import"),
 		Description: "Import an existing external resource and store in the state. " +
-			"MEDIUM risk operation for bringing existing infrastructure under MCP management. " +
+			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
+			"Do not assume provider names or versions - always search first. " +
+			"\n\nMEDIUM risk operation for bringing existing infrastructure under MCP management. " +
 			"Use this to adopt pre-existing resources that were created outside of the MCP " +
 			"workflow. Validates resource exists and reads current state through provider APIs. " +
 			"\n\nArgument Handling: If schema mismatches occur, set unknown/optional arguments " +
@@ -63,8 +65,12 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"type":        "string",
 					"description": "The OpenTofu resource type (e.g., 'random_string', 'aws_instance')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"import_id", "destination_id", "provider", "resource_type"},
+			Required: []string{"import_id", "destination_id", "provider", "resource_type", "provider_version"},
 		},
 	}, Handler: _import(storage, providerManager)}
 }
@@ -81,12 +87,13 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}
 
 		input := types.ResourceOperationInput{
-			ResourceID:    args.DestinationID,
-			ResourceType:  args.ResourceType,
-			Provider:      args.Provider,
-			Operation:     "import",
-			CurrentState:  nil, // no current state for import
-			ProposedState: nil, // no proposed state for import
+			ResourceID:      args.DestinationID,
+			ResourceType:    args.ResourceType,
+			Provider:        args.Provider,
+			ProviderVersion: args.ProviderVersion,
+			Operation:       "import",
+			CurrentState:    nil, // no current state for import
+			ProposedState:   nil, // no proposed state for import
 		}
 
 		operation, err := newResourceOperation(input)
@@ -116,20 +123,13 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		// Get actual provider version
-		version, err := providerManager.GetProviderVersion(ctx, args.Provider)
-		if err != nil {
-			// Fallback to "latest" if we can't get the version
-			version = "latest"
-		}
-
 		// Persist state to database
 		record := types.StateRecord{
-			ResourceID:   args.DestinationID,
-			Provider:     args.Provider,
-			Version:      version,
-			ResourceType: args.ResourceType,
-			State:        state,
+			ResourceID:      args.DestinationID,
+			Provider:        args.Provider,
+			ProviderVersion: args.ProviderVersion,
+			ResourceType:    args.ResourceType,
+			State:           state,
 		}
 
 		// Add operation context for automatic history tracking
@@ -144,11 +144,13 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		operation.ProposedState = state
 
 		return RespondJSON(map[string]any{
-			"import_id":      args.ImportID,
-			"destination_id": args.DestinationID,
-			"result":         state,
-			"status":         "imported",
-			"message":        "resource successfully imported",
+			"provider":         args.GetProvider().Name,
+			"provider_version": args.GetProvider().Version,
+			"import_id":        args.ImportID,
+			"destination_id":   args.DestinationID,
+			"result":           state,
+			"status":           "imported",
+			"message":          "resource successfully imported",
 		})
 	})
 }

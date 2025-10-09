@@ -63,12 +63,13 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		// Parse the stored state
 		input := types.ResourceOperationInput{
-			ResourceID:    args.ResourceID,
-			ResourceType:  record.ResourceType,
-			Provider:      record.Provider,
-			Operation:     "update",
-			CurrentState:  record.State,
-			ProposedState: args.Config,
+			ResourceID:      args.ResourceID,
+			ResourceType:    record.ResourceType,
+			Provider:        record.GetProvider().Name,
+			ProviderVersion: record.GetProvider().Version,
+			Operation:       "update",
+			CurrentState:    record.State,
+			ProposedState:   args.Config,
 		}
 
 		operation, err := newResourceOperation(input)
@@ -85,25 +86,25 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Update the resource using the provider manager
-		newState, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
+		state, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
 		if err != nil {
 			err = fmt.Errorf("failed to update resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case
-		if len(newState) == 0 {
+		if len(state) == 0 {
 			return mcp.NewToolResultText("{}"), nil
 		}
 
 		// Update state in database
 		updatedRecord := types.StateRecord{
-			ResourceID:   args.ResourceID,
-			Provider:     record.Provider,
-			Version:      record.Version,
-			ResourceType: record.ResourceType,
-			State:        newState,
-			CreatedAt:    record.CreatedAt, // Keep original creation time
+			ResourceID:      args.ResourceID,
+			Provider:        record.Provider,
+			ProviderVersion: record.ProviderVersion,
+			ResourceType:    record.ResourceType,
+			State:           state,
+			CreatedAt:       record.CreatedAt, // Keep original creation time
 		}
 
 		// Add operation context for automatic history tracking
@@ -116,9 +117,11 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}
 
 		return RespondJSON(map[string]any{
-			"resource_id": args.ResourceID,
-			"result":      newState,
-			"status":      "updated",
+			"provider":         record.GetProvider().Name,
+			"provider_version": record.GetProvider().Version,
+			"resource_id":      args.ResourceID,
+			"result":           state,
+			"status":           "updated",
 		})
 	})
 }

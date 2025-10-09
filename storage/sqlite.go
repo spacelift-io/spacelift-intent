@@ -122,6 +122,11 @@ func (s *sqliteStorage) createTables() error {
 		return err
 	}
 
+	// Run migrations
+	if err := s.migrate(ctx); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	return nil
 }
 
@@ -135,11 +140,11 @@ func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord)
 
 	// Save the state
 	query := `
-	INSERT OR REPLACE INTO state_records (id, provider, version, resource_type, state, created_at)
+	INSERT OR REPLACE INTO state_records (id, provider, provider_version, resource_type, state, created_at)
 	VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 	`
 
-	_, err = s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.Version, record.ResourceType, string(stateJSON))
+	_, err = s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.ProviderVersion, record.ResourceType, string(stateJSON))
 	if err != nil {
 		return err
 	}
@@ -164,7 +169,7 @@ func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord)
 // GetState retrieves a state record by ID
 func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRecord, error) {
 	query := `
-	SELECT id, provider, version, resource_type, state, created_at
+	SELECT id, provider, provider_version, resource_type, state, created_at
 	FROM state_records
 	WHERE id = ?
 	`
@@ -173,7 +178,7 @@ func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRe
 
 	var record types.StateRecord
 	var stateJSON string
-	err := row.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
+	err := row.Scan(&record.ResourceID, &record.Provider, &record.ProviderVersion, &record.ResourceType, &stateJSON, &record.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -195,7 +200,7 @@ func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRe
 // ListStates returns all state records
 func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, error) {
 	query := `
-	SELECT id, provider, version, resource_type, state, created_at
+	SELECT id, provider, provider_version, resource_type, state, created_at
 	FROM state_records
 	ORDER BY created_at DESC
 	`
@@ -210,7 +215,7 @@ func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, er
 	for rows.Next() {
 		var record types.StateRecord
 		var stateJSON string
-		err := rows.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
+		err := rows.Scan(&record.ResourceID, &record.Provider, &record.ProviderVersion, &record.ResourceType, &stateJSON, &record.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -490,8 +495,8 @@ type ResourceReference struct {
 
 func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation types.ResourceOperation) error {
 	query := `
-	INSERT INTO operations (id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed)
-	VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+	INSERT INTO operations (id, resource_id, resource_type, provider, provider_version, operation, current_state, proposed_state, created_at, failed)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
 	`
 
 	currentState, err := json.Marshal(operation.CurrentState)
@@ -513,6 +518,7 @@ func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation typ
 		operation.ResourceID,
 		operation.ResourceType,
 		operation.Provider,
+		operation.ProviderVersion,
 		operation.Operation,
 		string(currentState),
 		string(proposedState),
@@ -523,7 +529,7 @@ func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation typ
 
 func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.ResourceOperationsArgs) ([]types.ResourceOperation, error) {
 	query := `
-	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed
+	SELECT id, resource_id, resource_type, provider, provider_version, operation, current_state, proposed_state, created_at, failed
 	FROM operations 
 	WHERE 1=1
 	`
@@ -540,6 +546,10 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 	if args.Provider != nil {
 		query += " AND provider = ?"
 		vars = append(vars, *args.Provider)
+	}
+	if args.ProviderVersion != nil {
+		query += " AND provider_version = ?"
+		vars = append(vars, *args.ProviderVersion)
 	}
 	query += " ORDER BY datetime(created_at) DESC"
 
@@ -574,6 +584,7 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 			&operation.ResourceID,
 			&operation.ResourceType,
 			&operation.Provider,
+			&operation.ProviderVersion,
 			&operation.Operation,
 			&currentStateJSON,
 			&proposedStateJSON,
@@ -601,7 +612,7 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 
 func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID string) (*types.ResourceOperation, error) {
 	query := `
-	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed
+	SELECT id, resource_id, resource_type, provider, provider_version, operation, current_state, proposed_state, created_at, failed
 	FROM operations 
 	WHERE resource_id = ?
 	ORDER BY created_at DESC
@@ -618,6 +629,7 @@ func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID str
 		&operation.ResourceID,
 		&operation.ResourceType,
 		&operation.Provider,
+		&operation.ProviderVersion,
 		&operation.Operation,
 		&currentStateJSON,
 		&proposedStateJSON,

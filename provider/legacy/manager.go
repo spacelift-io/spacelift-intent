@@ -103,7 +103,7 @@ func (pm *DefaultManager) getSchema(ctx context.Context, provider *types.Provide
 
 // getProviderInfo returns internal provider info (private helper)
 func (pm *DefaultManager) getProviderInfo(provider *types.ProviderConfig) (*providerInfo, error) {
-	providerInfo, exists := pm.providers[provider.Name]
+	providerInfo, exists := pm.providers[provider.Key()]
 	if !exists {
 		return nil, fmt.Errorf("provider %s not loaded", provider.Name)
 	}
@@ -154,7 +154,7 @@ func (pm *DefaultManager) GetProviderVersions(ctx context.Context, providerName 
 // LoadProvider downloads and initializes a provider if not already loaded
 func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.ProviderConfig) error {
 	// Check if provider is already loaded
-	if _, exists := pm.providers[provider.Name]; exists {
+	if _, exists := pm.providers[provider.Key()]; exists {
 		return nil
 	}
 
@@ -171,20 +171,19 @@ func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.Prov
 	}
 
 	// Download and extract provider
-	binaryPath, err := pm.downloadAndExtractProvider(ctx, provider.Name, downloadInfo.DownloadURL)
+	binaryPath, err := pm.downloadAndExtractProvider(ctx, provider, downloadInfo.DownloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download provider: %w", err)
 	}
 
 	// Initialize the provider
-	return pm.initializeProvider(ctx, provider.Name, binaryPath, downloadInfo.Version)
+	return pm.initializeProvider(ctx, provider, binaryPath, downloadInfo.Version)
 }
 
 // downloadAndExtractProvider downloads and extracts a provider binary
-func (pm *DefaultManager) downloadAndExtractProvider(ctx context.Context, providerName, downloadURL string) (string, error) {
-
-	// Create provider directory
-	providerDir := filepath.Join(pm.tmpDir, strings.ReplaceAll(providerName, "/", "_"))
+func (pm *DefaultManager) downloadAndExtractProvider(ctx context.Context, providerConfig *types.ProviderConfig, downloadURL string) (string, error) {
+	// Create provider directory using name@version as key
+	providerDir := filepath.Join(pm.tmpDir, strings.ReplaceAll(providerConfig.Key(), "/", "_"))
 	if err := os.MkdirAll(providerDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create provider directory: %w", err)
 	}
@@ -300,10 +299,10 @@ func (pm *DefaultManager) findProviderBinary(dir string) (string, error) {
 }
 
 // initializeProvider initializes a provider plugin
-func (pm *DefaultManager) initializeProvider(ctx context.Context, providerName, binaryPath, version string) error {
+func (pm *DefaultManager) initializeProvider(ctx context.Context, providerConfig *types.ProviderConfig, binaryPath, version string) error {
 
 	// Initialize provider using build-tagged implementation
-	providerInfo, err := startProviderPlugin(binaryPath, providerName)
+	providerInfo, err := startProviderPlugin(binaryPath, providerConfig.Name)
 	if err != nil {
 		return fmt.Errorf("failed to start provider plugin: %w", err)
 	}
@@ -317,14 +316,14 @@ func (pm *DefaultManager) initializeProvider(ctx context.Context, providerName, 
 	providerInfo.schema = schema
 
 	// Configure provider - kill on error
-	if err := pm.configureProvider(ctx, providerInfo.provider, providerName); err != nil {
+	if err := pm.configureProvider(ctx, providerInfo.provider, providerConfig.Name); err != nil {
 		providerInfo.Kill()
 		return fmt.Errorf("failed to configure provider: %w", err)
 	}
 
 	// Set additional info and store
 	providerInfo.version = version
-	pm.providers[providerName] = providerInfo
+	pm.providers[providerConfig.Key()] = providerInfo
 
 	return nil
 }

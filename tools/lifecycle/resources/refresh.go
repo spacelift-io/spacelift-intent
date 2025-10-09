@@ -56,11 +56,12 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		// Parse the stored state
 		input := types.ResourceOperationInput{
-			ResourceID:   args.ResourceID,
-			Provider:     record.Provider,
-			ResourceType: record.ResourceType,
-			Operation:    "refresh",
-			CurrentState: record.State,
+			ResourceID:      args.ResourceID,
+			Provider:        record.GetProvider().Name,
+			ProviderVersion: record.GetProvider().Version,
+			ResourceType:    record.ResourceType,
+			Operation:       "refresh",
+			CurrentState:    record.State,
 		}
 
 		operation, err := newResourceOperation(input)
@@ -77,7 +78,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Refresh the resource using the provider manager
-		refreshedState, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
+		stateResult, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("failed to refresh resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -87,32 +88,29 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		var status, message string
 		var responseState map[string]any
 
-		if len(refreshedState) == 0 {
+		if len(stateResult) == 0 {
 			status, message = "warning", "Resource appears to have been deleted externally"
-			responseState = map[string]any{}
-		} else if !reflect.DeepEqual(record.State, refreshedState) {
+		} else if !reflect.DeepEqual(record.State, stateResult) {
 			status, message = "warning", "Resource has drifted - changes detected during refresh"
-			responseState = refreshedState
 		} else {
 			status, message = "refreshed", "Resource was already fresh - no changes detected"
-			responseState = refreshedState
 		}
 
 		// Save state if we have refreshed data
-		if len(refreshedState) > 0 {
+		if len(stateResult) > 0 {
 			updatedRecord := types.StateRecord{
-				ResourceID:   args.ResourceID,
-				Provider:     record.Provider,
-				Version:      record.Version,
-				ResourceType: record.ResourceType,
-				State:        refreshedState,
+				ResourceID:      args.ResourceID,
+				Provider:        record.Provider,
+				ProviderVersion: record.ProviderVersion,
+				ResourceType:    record.ResourceType,
+				State:           stateResult,
 			}
 
 			// Add operation context for automatic history tracking
 			ctx = context.WithValue(ctx, types.OperationContextKey, "refresh")
 			ctx = context.WithValue(ctx, types.ChangedByContextKey, "mcp-user")
 
-			operation.ProposedState = refreshedState
+			operation.ProposedState = stateResult
 
 			if err = storage.SaveState(ctx, updatedRecord); err != nil {
 				err = fmt.Errorf("failed to save refreshed state: %w", err)
@@ -122,10 +120,12 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}
 
 		return RespondJSON(map[string]any{
-			"resource_id": args.ResourceID,
-			"status":      status,
-			"message":     message,
-			"result":      responseState,
+			"provider":         record.GetProvider().Name,
+			"provider_version": record.GetProvider().Version,
+			"resource_id":      args.ResourceID,
+			"status":           status,
+			"message":          message,
+			"result":           responseState,
 		})
 	},
 	)

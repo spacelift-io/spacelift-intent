@@ -13,8 +13,8 @@ import (
 )
 
 type describeArgs struct {
-	Provider string  `json:"provider"`
-	Version  *string `json:"version,omitempty"`
+	Provider string `json:"provider"`
+	Version  string `json:"provider_version"`
 }
 
 func (args describeArgs) GetProvider() *types.ProviderConfig {
@@ -26,8 +26,11 @@ func (args describeArgs) GetProvider() *types.ProviderConfig {
 
 func Describe(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
-		Name:        string("provider-describe"),
-		Description: "Show the provider configuration, supported resources and supported data sources. Use this tool after finding a provider to understand its capabilities before resource creation - essential for discovering available resource types, data sources, and configuration requirements. Critical for the Configuration Phase workflow to validate resource definitions and ensure proper provider argument handling.",
+		Name: string("provider-describe"),
+		Description: "Show the provider configuration, supported resources and supported data sources. " +
+			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
+			"Do not assume provider names or versions - always search first. " +
+			"\n\nUse this tool after finding a provider to understand its capabilities before resource creation - essential for discovering available resource types, data sources, and configuration requirements. Critical for the Configuration Phase workflow to validate resource definitions and ensure proper provider argument handling.",
 		Annotations: i.ToolAnnotations("Show the provider config", i.Readonly|i.Idempotent),
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
@@ -36,8 +39,12 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 					"type":        "string",
 					"description": "Provider name (e.g., 'hashicorp/aws', 'spacelift-io/spacelift')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"provider"},
+			Required: []string{"provider", "provider_version"},
 		},
 	}, Handler: describe(providerManager)}
 }
@@ -53,18 +60,16 @@ func describe(providerManager types.ProviderManager) i.ToolHandler {
 			versionsStrings[i] = v.Version
 		}
 
-		if args.Version != nil {
-			found := false
-			availableVersions := make([]string, 0, len(versions))
-			for _, v := range versions {
-				availableVersions = append(availableVersions, v.Version)
-				if v.Version == *args.Version {
-					found = true
-				}
+		found := false
+		availableVersions := make([]string, 0, len(versions))
+		for _, v := range versions {
+			availableVersions = append(availableVersions, v.Version)
+			if v.Version == args.Version {
+				found = true
 			}
-			if !found {
-				return mcp.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", *args.Version, args.Provider, availableVersions)), nil
-			}
+		}
+		if !found {
+			return mcp.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", args.Version, args.Provider, availableVersions)), nil
 		}
 
 		schema, confErr, err := providerManager.DescribeProvider(ctx, args.GetProvider())

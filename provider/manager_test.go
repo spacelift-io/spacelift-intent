@@ -31,7 +31,8 @@ func TestPlanResource(t *testing.T) {
 	}
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	plannedState, err := adapter.PlanResource(ctx, providerConfig, "random_password", nil, config)
@@ -62,7 +63,8 @@ func TestCreateResource(t *testing.T) {
 	}
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	createdState, err := adapter.CreateResource(ctx, providerConfig, "random_string", config)
@@ -89,7 +91,8 @@ func TestUpdateResource(t *testing.T) {
 	defer adapter.Cleanup(ctx)
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	// First create a resource to have current state
@@ -137,7 +140,8 @@ func TestDeleteResource(t *testing.T) {
 	defer adapter.Cleanup(ctx)
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	// First create a resource to delete
@@ -169,7 +173,8 @@ func TestRefreshResource(t *testing.T) {
 	defer adapter.Cleanup(ctx)
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	// First create a resource to refresh
@@ -207,7 +212,8 @@ func TestListResources(t *testing.T) {
 	defer adapter.Cleanup(ctx)
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	// Test ListResources with random provider
@@ -234,7 +240,8 @@ func TestDescribeResource(t *testing.T) {
 	defer adapter.Cleanup(ctx)
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	// Test DescribeResource with random_string
@@ -349,7 +356,8 @@ func TestImportResource(t *testing.T) {
 	}
 
 	providerConfig := &types.ProviderConfig{
-		Name: "hashicorp/random",
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
 	}
 
 	state, err := adapter.CreateResource(ctx, providerConfig, "random_string", config)
@@ -369,15 +377,4 @@ func TestImportResource(t *testing.T) {
 	assert.EqualValues(t, 8, importedState["length"])
 
 	t.Logf("Imported random_string resource: %+v", importedState)
-}
-
-func TestProviderManagerSuite(t *testing.T) {
-	t.Run("PlanResource", TestPlanResource)
-	t.Run("CreateResource", TestCreateResource)
-	t.Run("UpdateResource", TestUpdateResource)
-	t.Run("DeleteResource", TestDeleteResource)
-	t.Run("RefreshResource", TestRefreshResource)
-	t.Run("ListResources", TestListResources)
-	t.Run("DescribeResource", TestDescribeResource)
-	t.Run("ImportResource", TestImportResource)
 }
