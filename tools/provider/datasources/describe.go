@@ -11,9 +11,9 @@ import (
 )
 
 type describeArgs struct {
-	Provider        string  `json:"provider"`
-	DataSourceType  string  `json:"data_source_type"`
-	ProviderVersion *string `json:"provider_version,omitempty"`
+	Provider        string `json:"provider"`
+	DataSourceType  string `json:"data_source_type"`
+	ProviderVersion string `json:"provider_version"`
 }
 
 func (args describeArgs) GetProvider() *types.ProviderConfig {
@@ -47,8 +47,12 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 					"type":        "string",
 					"description": "The type of the data source (e.g., 'spacelift_context', 'random_string', 'aws_ami')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"provider", "data_source_type"},
+			Required: []string{"provider", "data_source_type", "provider_version"},
 		},
 	}, Handler: describe(providerManager)}
 }

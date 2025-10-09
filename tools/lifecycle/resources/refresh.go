@@ -75,7 +75,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Refresh the resource using the provider manager
-		refreshedState, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
+		stateResult, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("Failed to refresh resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -85,32 +85,29 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		var status, message string
 		var responseState map[string]any
 
-		if len(refreshedState) == 0 {
+		if len(stateResult) == 0 {
 			status, message = "warning", "Resource appears to have been deleted externally"
-			responseState = map[string]any{}
-		} else if !reflect.DeepEqual(record.State, refreshedState) {
+		} else if !reflect.DeepEqual(record.State, stateResult) {
 			status, message = "warning", "Resource has drifted - changes detected during refresh"
-			responseState = refreshedState
 		} else {
 			status, message = "refreshed", "Resource was already fresh - no changes detected"
-			responseState = refreshedState
 		}
 
 		// Save state if we have refreshed data
-		if len(refreshedState) > 0 {
+		if len(stateResult) > 0 {
 			updatedRecord := types.StateRecord{
 				ResourceID:   args.ResourceID,
 				Provider:     record.Provider,
 				Version:      record.Version,
 				ResourceType: record.ResourceType,
-				State:        refreshedState,
+				State:        stateResult,
 			}
 
 			// Add operation context for automatic history tracking
 			ctx = context.WithValue(ctx, types.OperationContextKey, "refresh")
 			ctx = context.WithValue(ctx, types.ChangedByContextKey, "mcp-user")
 
-			operation.ProposedState = refreshedState
+			operation.ProposedState = stateResult
 
 			if err = storage.SaveState(ctx, updatedRecord); err != nil {
 				err = fmt.Errorf("Failed to save refreshed state: %w", err)

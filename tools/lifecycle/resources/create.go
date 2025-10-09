@@ -15,7 +15,7 @@ type createArgs struct {
 	Provider        string         `json:"provider"`
 	ResourceType    string         `json:"resource_type"`
 	Config          map[string]any `json:"config"`
-	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderVersion string         `json:"provider_version"`
 	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
 }
 
@@ -62,8 +62,12 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"type":        "object",
 					"description": "Configuration parameters for the resource",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"resource_id", "provider", "resource_type", "config"},
+			Required: []string{"resource_id", "provider", "resource_type", "config", "provider_version"},
 		},
 	}, Handler: create(storage, providerManager)}
 }
@@ -99,22 +103,15 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Create resource using provider manager
-		state, err := providerManager.CreateResource(ctx, args.GetProvider(), args.ResourceType, args.Config)
+		stateResult, err := providerManager.CreateResource(ctx, args.GetProvider(), args.ResourceType, args.Config)
 		if err != nil {
 			err = fmt.Errorf("failed to create resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case
-		if len(state) == 0 {
+		if len(stateResult) == 0 {
 			return mcp.NewToolResultText("{}"), nil
-		}
-
-		// Get actual provider version
-		version, err := providerManager.GetProviderVersion(ctx, args.Provider)
-		if err != nil {
-			// Fallback to "latest" if we can't get the version
-			version = "latest"
 		}
 
 		// Persist state to database
@@ -122,8 +119,8 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			ResourceID:   args.ResourceID,
 			Provider:     args.Provider,
 			ResourceType: args.ResourceType,
-			Version:      version,
-			State:        state,
+			Version:      args.ProviderVersion,
+			State:        stateResult,
 		}
 
 		// Add operation context for automatic history tracking
@@ -139,7 +136,7 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
-			"result":      state,
+			"result":      stateResult,
 			"status":      "created",
 		})
 	})

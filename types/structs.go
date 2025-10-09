@@ -45,13 +45,9 @@ type StateRecord struct {
 }
 
 func (r StateRecord) GetProvider() *ProviderConfig {
-	version := &r.Version
-	if r.Version == "" {
-		version = nil
-	}
 	return &ProviderConfig{
 		Name:    r.Provider,
-		Version: version,
+		Version: r.Version,
 	}
 }
 
@@ -138,8 +134,13 @@ type ProviderSchema struct {
 
 type ProviderConfig struct {
 	Name    string         `json:"name"`
-	Version *string        `json:"version,omitempty"`
+	Version string         `json:"version"`
 	Config  map[string]any `json:"config,omitempty"`
+}
+
+// Key returns a unique cache key for this provider configuration
+func (p *ProviderConfig) Key() string {
+	return p.Name + "@" + p.Version
 }
 
 // ProviderVersionInfo represents provider version information from registry

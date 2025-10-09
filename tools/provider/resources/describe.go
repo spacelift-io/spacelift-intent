@@ -11,13 +11,15 @@ import (
 )
 
 type describeArgs struct {
-	Provider     string `json:"provider"`
-	ResourceType string `json:"resource_type"`
+	Provider        string `json:"provider"`
+	ResourceType    string `json:"resource_type"`
+	ProviderVersion string `json:"provider_version"`
 }
 
 func (args describeArgs) GetProvider() *types.ProviderConfig {
 	return &types.ProviderConfig{
-		Name: args.Provider,
+		Name:    args.Provider,
+		Version: args.ProviderVersion,
 	}
 }
 
@@ -46,8 +48,12 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 					"type":        "string",
 					"description": "The OpenTofu resource type (e.g., 'random_string', 'aws_instance')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"provider", "resource_type"},
+			Required: []string{"provider", "resource_type", "provider_version"},
 		},
 	}, Handler: describe(providerManager)}
 }

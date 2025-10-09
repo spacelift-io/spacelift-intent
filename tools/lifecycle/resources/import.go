@@ -15,7 +15,7 @@ type importArgs struct {
 	DestinationID   string         `json:"destination_id"`
 	Provider        string         `json:"provider"`
 	ResourceType    string         `json:"resource_type"`
-	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderVersion string         `json:"provider_version"`
 	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
 }
 
@@ -61,8 +61,12 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"type":        "string",
 					"description": "The OpenTofu resource type (e.g., 'random_string', 'aws_instance')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"import_id", "destination_id", "provider", "resource_type"},
+			Required: []string{"import_id", "destination_id", "provider", "resource_type", "provider_version"},
 		},
 	}, Handler: _import(storage, providerManager)}
 }
@@ -101,7 +105,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Import resource using provider manager
-		state, err := providerManager.ImportResource(ctx, args.GetProvider(), args.ResourceType, args.ImportID)
+		stateResult, err := providerManager.ImportResource(ctx, args.GetProvider(), args.ResourceType, args.ImportID)
 		if err != nil {
 			err = fmt.Errorf("Failed to import resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -109,25 +113,18 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		// Handle empty state case - for import, this indicates the resource doesn't exist
 		// TODO: Figure out if we want to handle empty state case for import here or in the providerManager
-		if len(state) == 0 {
+		if len(stateResult) == 0 {
 			err = fmt.Errorf("Resource with ID '%s' does not exist or returned empty state", args.ImportID)
 			return mcp.NewToolResultError(err.Error()), nil
-		}
-
-		// Get actual provider version
-		version, err := providerManager.GetProviderVersion(ctx, args.Provider)
-		if err != nil {
-			// Fallback to "latest" if we can't get the version
-			version = "latest"
 		}
 
 		// Persist state to database
 		record := types.StateRecord{
 			ResourceID:   args.DestinationID,
 			Provider:     args.Provider,
-			Version:      version,
+			Version:      args.ProviderVersion,
 			ResourceType: args.ResourceType,
-			State:        state,
+			State:        stateResult,
 		}
 
 		// Add operation context for automatic history tracking
@@ -139,12 +136,12 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		operation.ProposedState = state
+		operation.ProposedState = stateResult
 
 		return RespondJSON(map[string]any{
 			"import_id":      args.ImportID,
 			"destination_id": args.DestinationID,
-			"result":         state,
+			"result":         stateResult,
 			"status":         "imported",
 			"message":        "resource successfully imported",
 		})

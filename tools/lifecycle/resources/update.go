@@ -83,14 +83,14 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Update the resource using the provider manager
-		newState, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
+		state, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
 		if err != nil {
 			err = fmt.Errorf("Failed to update resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case
-		if len(newState) == 0 {
+		if len(state) == 0 {
 			return mcp.NewToolResultText("{}"), nil
 		}
 
@@ -100,7 +100,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			Provider:     record.Provider,
 			Version:      record.Version,
 			ResourceType: record.ResourceType,
-			State:        newState,
+			State:        state,
 			CreatedAt:    record.CreatedAt, // Keep original creation time
 		}
 
@@ -115,7 +115,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		return RespondJSON(map[string]any{
 			"resource_id": args.ResourceID,
-			"result":      newState,
+			"result":      state,
 			"status":      "updated",
 		})
 	})

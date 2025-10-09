@@ -11,8 +11,8 @@ import (
 )
 
 type describeArgs struct {
-	Provider string  `json:"provider"`
-	Version  *string `json:"version,omitempty"`
+	Provider string `json:"provider"`
+	Version  string `json:"provider_version"`
 }
 
 func (args describeArgs) GetProvider() *types.ProviderConfig {
@@ -34,8 +34,12 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 					"type":        "string",
 					"description": "Provider name (e.g., 'hashicorp/aws', 'spacelift-io/spacelift')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"provider"},
+			Required: []string{"provider", "provider_version"},
 		},
 	}, Handler: describe(providerManager)}
 }
@@ -51,18 +55,16 @@ func describe(providerManager types.ProviderManager) i.ToolHandler {
 			versionsStrings[i] = v.Version
 		}
 
-		if args.Version != nil {
-			found := false
-			availableVersions := make([]string, 0, len(versions))
-			for _, v := range versions {
-				availableVersions = append(availableVersions, v.Version)
-				if v.Version == *args.Version {
-					found = true
-				}
+		found := false
+		availableVersions := make([]string, 0, len(versions))
+		for _, v := range versions {
+			availableVersions = append(availableVersions, v.Version)
+			if v.Version == args.Version {
+				found = true
 			}
-			if !found {
-				return mcp.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", *args.Version, args.Provider, availableVersions)), nil
-			}
+		}
+		if !found {
+			return mcp.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", args.Version, args.Provider, availableVersions)), nil
 		}
 
 		schema, confErr, err := providerManager.DescribeProvider(ctx, args.GetProvider())
