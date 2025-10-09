@@ -14,11 +14,12 @@ import (
 )
 
 type operationsArgs struct {
-	ResourceID   *string `json:"resource_id"`
-	Provider     *string `json:"provider"`
-	ResourceType *string `json:"resource_type"`
-	Page         *int    `json:"page"`
-	PageSize     *int    `json:"page_size"`
+	ResourceID      *string `json:"resource_id"`
+	Provider        *string `json:"provider"`
+	ProviderVersion *string `json:"provider_version"`
+	ResourceType    *string `json:"resource_type"`
+	Page            *int    `json:"page"`
+	PageSize        *int    `json:"page_size"`
 }
 
 const (
@@ -49,6 +50,10 @@ func Operations(storage types.Storage) i.Tool {
 				"provider": map[string]any{
 					"type":        "string",
 					"description": "Filter by provider name (e.g., 'hashicorp/aws', 'hashicorp/random'), if not provided, all resources will be returned",
+				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Filter by provider version (e.g., '5.0.0'), if not provided, all versions will be returned",
 				},
 				"resource_type": map[string]any{
 					"type":        "string",
@@ -96,11 +101,12 @@ func operations(storage types.Storage) i.ToolHandler {
 		limitWithLookahead := pageSize + 1
 
 		operations, err := storage.ListResourceOperations(ctx, types.ResourceOperationsArgs{
-			ResourceID:   args.ResourceID,
-			Provider:     args.Provider,
-			ResourceType: args.ResourceType,
-			Limit:        &limitWithLookahead,
-			Offset:       offset,
+			ResourceID:      args.ResourceID,
+			Provider:        args.Provider,
+			ProviderVersion: args.ProviderVersion,
+			ResourceType:    args.ResourceType,
+			Limit:           &limitWithLookahead,
+			Offset:          offset,
 		})
 
 		if err != nil {
@@ -123,6 +129,7 @@ func operations(storage types.Storage) i.ToolHandler {
 				output += fmt.Sprintf("  - Resource ID: %s\n", op.ResourceID)
 				output += fmt.Sprintf("  - Resource Type: %s\n", op.ResourceType)
 				output += fmt.Sprintf("  - Provider: %s\n", op.Provider)
+				output += fmt.Sprintf("  - Provider Version: %s\n", op.ProviderVersion)
 				output += fmt.Sprintf("  - Operation: %s\n", op.Operation)
 				if op.Failed != nil && *op.Failed != "" {
 					output += fmt.Sprintf("  - FAILED: %s\n", *op.Failed)

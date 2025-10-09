@@ -69,14 +69,14 @@ func get(storage types.Storage) i.ToolHandler {
 		}
 
 		return i.RespondJSON(map[string]any{
-			"resource_id":   record.ResourceID,
-			"provider":      record.Provider,
-			"version":       record.Version,
-			"resource_type": record.ResourceType,
-			"state":         record.State,
-			"created_at":    record.CreatedAt,
-			"dependencies":  dependencyIDs,
-			"dependents":    dependentIDs,
+			"resource_id":      record.ResourceID,
+			"provider":         record.Provider,
+			"provider_version": record.ProviderVersion,
+			"resource_type":    record.ResourceType,
+			"state":            record.State,
+			"created_at":       record.CreatedAt,
+			"dependencies":     dependencyIDs,
+			"dependents":       dependentIDs,
 		})
 	})
 }

@@ -39,22 +39,18 @@ type ProviderSearchResult struct {
 
 // StateRecord represents a stored resource state
 type StateRecord struct {
-	ResourceID   string         `json:"resource_id"`
-	Provider     string         `json:"provider"`
-	Version      string         `json:"version"` // provider version
-	ResourceType string         `json:"resource_type"`
-	State        map[string]any `json:"state"`
-	CreatedAt    string         `json:"created_at"`
+	ResourceID      string         `json:"resource_id"`
+	Provider        string         `json:"provider"`
+	ProviderVersion string         `json:"provider_version"`
+	ResourceType    string         `json:"resource_type"`
+	State           map[string]any `json:"state"`
+	CreatedAt       string         `json:"created_at"`
 }
 
 func (r StateRecord) GetProvider() *ProviderConfig {
-	version := &r.Version
-	if r.Version == "" {
-		version = nil
-	}
 	return &ProviderConfig{
 		Name:    r.Provider,
-		Version: version,
+		Version: r.ProviderVersion,
 	}
 }
 
@@ -111,12 +107,13 @@ type ResourceOperation struct {
 
 // ResourceOperationInput represents the input data for a resource operation
 type ResourceOperationInput struct {
-	ResourceID    string         `json:"resource_id"`
-	ResourceType  string         `json:"resource_type"`
-	Provider      string         `json:"provider"`
-	Operation     string         `json:"operation"` // "create", "update", "delete", "import", "refresh"
-	CurrentState  map[string]any `json:"current_state,omitempty"`
-	ProposedState map[string]any `json:"proposed_state,omitempty"`
+	ResourceID      string         `json:"resource_id"`
+	ResourceType    string         `json:"resource_type"`
+	Provider        string         `json:"provider"`
+	ProviderVersion string         `json:"provider_version"`
+	Operation       string         `json:"operation"` // "create", "update", "delete", "import", "refresh"
+	CurrentState    map[string]any `json:"current_state,omitempty"`
+	ProposedState   map[string]any `json:"proposed_state,omitempty"`
 }
 
 type ResourceOperationResult struct {
@@ -124,11 +121,12 @@ type ResourceOperationResult struct {
 }
 
 type ResourceOperationsArgs struct {
-	ResourceID   *string `json:"resource_id"`
-	ResourceType *string `json:"resource_type"`
-	Provider     *string `json:"provider"`
-	Limit        *int    `json:"limit"`
-	Offset       int     `json:"offset"`
+	ResourceID      *string `json:"resource_id"`
+	ResourceType    *string `json:"resource_type"`
+	Provider        *string `json:"provider"`
+	ProviderVersion *string `json:"provider_version"`
+	Limit           *int    `json:"limit"`
+	Offset          int     `json:"offset"`
 }
 
 // ProviderSchema represents the schema information for a provider
@@ -141,8 +139,13 @@ type ProviderSchema struct {
 
 type ProviderConfig struct {
 	Name    string         `json:"name"`
-	Version *string        `json:"version,omitempty"`
+	Version string         `json:"version"`
 	Config  map[string]any `json:"config,omitempty"`
+}
+
+// Key returns a unique cache key for this provider configuration
+func (p *ProviderConfig) Key() string {
+	return p.Name + "@" + p.Version
 }
 
 // ProviderVersionInfo represents provider version information from registry

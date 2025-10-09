@@ -16,7 +16,7 @@ type readArgs struct {
 	ProviderName    string         `json:"provider"`
 	DataSourceType  string         `json:"data_source_type"`
 	Config          map[string]any `json:"config"`
-	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderVersion string         `json:"provider_version"`
 	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
 }
 
@@ -32,7 +32,9 @@ func Read(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-datasources-read"),
 		Description: "Read data from a data source of any type from any provider. " +
-			"LOW risk read-only operation for querying external data during Discovery Phase. " +
+			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
+			"Do not assume provider names or versions - always search first. " +
+			"\n\nLOW risk read-only operation for querying external data during Discovery Phase. " +
 			"Use this to retrieve existing infrastructure information, configuration values, " +
 			"and external references needed for resource configuration. Does not modify state - " +
 			"purely informational data retrieval through provider APIs. " +
@@ -55,8 +57,12 @@ func Read(providerManager types.ProviderManager) i.Tool {
 					"type":        "object",
 					"description": "Configuration parameters for the data source",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"provider", "data_source_type", "config"},
+			Required: []string{"provider", "data_source_type", "config", "provider_version"},
 		},
 	}, Handler: read(providerManager)}
 }
@@ -64,16 +70,20 @@ func Read(providerManager types.ProviderManager) i.Tool {
 func read(providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args readArgs) (*mcp.CallToolResult, error) {
 		// Read data source using provider manager
-		state, err := providerManager.ReadDataSource(ctx, args.GetProvider(), args.DataSourceType, args.Config)
+		stateResult, err := providerManager.ReadDataSource(ctx, args.GetProvider(), args.DataSourceType, args.Config)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to read data source: %v", err)), nil
 		}
 
 		// Handle empty state case
-		if len(state) == 0 {
+		if len(stateResult) == 0 {
 			return mcp.NewToolResultText("{}"), nil
 		}
 
-		return i.RespondJSON(state)
+		return i.RespondJSON(map[string]any{
+			"provider":         args.GetProvider().Name,
+			"provider_version": args.GetProvider().Version,
+			"result":           stateResult,
+		})
 	})
 }
