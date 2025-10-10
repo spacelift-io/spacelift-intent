@@ -170,6 +170,117 @@ func (sc *SchemaConverter) blockTypeToObjectType(blockType providerschema.Nested
 	return cty.Object(attrTypes)
 }
 
+// processBlockTypeInfo processes a NestedBlockType and returns its information map recursively
+func (sc *SchemaConverter) processBlockTypeInfo(blockType providerschema.NestedBlockType) map[string]any {
+	blockInfo := map[string]any{
+		"is_block": true,
+	}
+
+	// Get nesting mode
+	nesting := blockType.Nesting()
+	switch nesting {
+	case providerschema.NestingList:
+		blockInfo["nesting"] = "list"
+		blockInfo["type"] = "list"
+	case providerschema.NestingSet:
+		blockInfo["nesting"] = "set"
+		blockInfo["type"] = "set"
+	case providerschema.NestingMap:
+		blockInfo["nesting"] = "map"
+		blockInfo["type"] = "map"
+	case providerschema.NestingSingle:
+		blockInfo["nesting"] = "single"
+		blockInfo["type"] = "object"
+	case providerschema.NestingGroup:
+		blockInfo["nesting"] = "group"
+		blockInfo["type"] = "object"
+	default:
+		blockInfo["nesting"] = "unknown"
+		blockInfo["type"] = "unknown"
+	}
+
+	// Get min and max items constraints
+	minItems, maxItems := blockType.ItemLimits()
+	blockInfo["min_items"] = minItems
+	blockInfo["max_items"] = maxItems
+
+	// Extract nested attributes from the block
+	nestedProperties := make(map[string]any)
+	nestedRequired := []string{}
+
+	for nestedAttrName, nestedAttr := range maps.Collect(blockType.Attributes()) {
+		nestedAttrInfo := map[string]any{
+			"type": "string", // Default type
+		}
+
+		// Get the attribute type
+		if attrType := nestedAttr.Type(); attrType != nil {
+			if ctyType, err := attrType.AsCtyType(); err == nil {
+				nestedAttrInfo["type"] = sc.ctyTypeToString(ctyType)
+			}
+		}
+
+		// Check for nested types within the block attribute
+		if nestedType := nestedAttr.NestedType(); nestedType != nil {
+			nestedAttrInfo["nested"] = true
+		}
+
+		// Check if attribute is required
+		usage := nestedAttr.Usage()
+		if usage == providerschema.AttributeRequired {
+			nestedRequired = append(nestedRequired, nestedAttrName)
+			nestedAttrInfo["required"] = true
+		} else {
+			nestedAttrInfo["required"] = false
+		}
+
+		// Add usage information
+		switch usage {
+		case providerschema.AttributeRequired:
+			nestedAttrInfo["usage"] = "required"
+		case providerschema.AttributeOptional:
+			nestedAttrInfo["usage"] = "optional"
+		case providerschema.AttributeOptionalComputed:
+			nestedAttrInfo["usage"] = "optional_computed"
+		case providerschema.AttributeComputed:
+			nestedAttrInfo["usage"] = "computed"
+		default:
+			nestedAttrInfo["usage"] = "unsupported"
+		}
+
+		// Add sensitive and deprecated flags
+		nestedAttrInfo["sensitive"] = nestedAttr.IsSensitive()
+		nestedAttrInfo["deprecated"] = nestedAttr.IsDeprecated()
+		nestedAttrInfo["write_only"] = nestedAttr.IsWriteOnly()
+
+		// Add description if available
+		if desc, _ := nestedAttr.DocDescription(); desc != "" {
+			nestedAttrInfo["description"] = desc
+		}
+
+		nestedProperties[nestedAttrName] = nestedAttrInfo
+	}
+
+	// Add nested properties to block info
+	if len(nestedProperties) > 0 {
+		blockInfo["properties"] = nestedProperties
+	}
+	if len(nestedRequired) > 0 {
+		blockInfo["required"] = nestedRequired
+	}
+
+	// Recursively process nested blocks
+	nestedBlocks := make(map[string]any)
+	for nestedBlockName, nestedBlockType := range maps.Collect(blockType.NestedBlockTypes()) {
+		nestedBlocks[nestedBlockName] = sc.processBlockTypeInfo(nestedBlockType)
+	}
+	if len(nestedBlocks) > 0 {
+		blockInfo["nested_blocks"] = nestedBlocks
+	}
+
+	return blockInfo
+}
+
 // convertSchemaToTypeDescription converts a providerschema.Schema to types.TypeDescription
 func (sc *SchemaConverter) convertSchemaToTypeDescription(providerName, typeName string, schema providerschema.Schema, schemaType string) *types.TypeDescription {
 	properties := make(map[string]any)
@@ -227,6 +338,11 @@ func (sc *SchemaConverter) convertSchemaToTypeDescription(providerName, typeName
 		}
 
 		properties[attrName] = attrInfo
+	}
+
+	// Extract nested block types from schema (recursively)
+	for blockName, blockType := range maps.Collect(schema.NestedBlockTypes()) {
+		properties[blockName] = sc.processBlockTypeInfo(blockType)
 	}
 
 	// Try to get the actual schema description by accessing the underlying implementation
