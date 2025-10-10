@@ -379,3 +379,88 @@ func TestImportResource(t *testing.T) {
 
 	t.Logf("Imported random_string resource: %+v", importedState)
 }
+
+func TestMultipleVersionsInCache(t *testing.T) {
+	tmpDir := "./test-providers"
+	err := os.MkdirAll(tmpDir, 0755)
+	require.NoError(t, err)
+
+	registryClient := registry.NewOpenTofuClient()
+	adapter := NewAdaptiveManager(tmpDir, registryClient)
+	ctx := context.Background()
+	defer adapter.Cleanup(ctx)
+
+	// Load version 3.6.0 of random provider
+	providerConfigV360 := &types.ProviderConfig{
+		Name:    "hashicorp/random",
+		Version: "3.6.0",
+	}
+
+	err = adapter.LoadProvider(ctx, providerConfigV360)
+	require.NoError(t, err)
+
+	// Load version 3.5.1 of random provider
+	providerConfigV351 := &types.ProviderConfig{
+		Name:    "hashicorp/random",
+		Version: "3.5.1",
+	}
+
+	err = adapter.LoadProvider(ctx, providerConfigV351)
+	require.NoError(t, err)
+
+	// Verify that two different provider binaries were downloaded to separate directories
+	// The directories should be named with the versioned provider name
+	expectedDirV360 := tmpDir + "/hashicorp_random@3.6.0"
+	expectedDirV351 := tmpDir + "/hashicorp_random@3.5.1"
+
+	_, err = os.Stat(expectedDirV360)
+	require.NoError(t, err, "v3.6.0 provider directory should exist: %s", expectedDirV360)
+
+	_, err = os.Stat(expectedDirV351)
+	require.NoError(t, err, "v3.5.1 provider directory should exist: %s", expectedDirV351)
+
+	// Verify loading the same provider version again doesn't fail (idempotent)
+	err = adapter.LoadProvider(ctx, providerConfigV360)
+	require.NoError(t, err, "Loading already-cached provider should be idempotent")
+
+	// Create resources with v3.6.0
+	configV360 := map[string]any{
+		"length":  8,
+		"special": false,
+	}
+
+	stateV360, err := adapter.CreateResource(ctx, providerConfigV360, "random_string", configV360)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, stateV360["result"])
+	assert.EqualValues(t, 8, stateV360["length"])
+	assert.Equal(t, false, stateV360["special"])
+
+	// Create resources with v3.5.1
+	configV351 := map[string]any{
+		"length":  10,
+		"special": true,
+	}
+
+	stateV351, err := adapter.CreateResource(ctx, providerConfigV351, "random_string", configV351)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, stateV351["result"])
+	assert.EqualValues(t, 10, stateV351["length"])
+	assert.Equal(t, true, stateV351["special"])
+
+	// Verify we can use both versions independently after creation
+	// Refresh with v3.6.0
+	refreshedV360, err := adapter.RefreshResource(ctx, providerConfigV360, "random_string", stateV360)
+	require.NoError(t, err)
+
+	assert.Equal(t, stateV360["id"], refreshedV360["id"])
+	assert.Equal(t, stateV360["result"], refreshedV360["result"])
+
+	// Refresh with v3.5.1
+	refreshedV351, err := adapter.RefreshResource(ctx, providerConfigV351, "random_string", stateV351)
+	require.NoError(t, err)
+
+	assert.Equal(t, stateV351["id"], refreshedV351["id"])
+	assert.Equal(t, stateV351["result"], refreshedV351["result"])
+}
