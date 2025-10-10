@@ -217,14 +217,15 @@ func (th *TestHelper) CleanupResource(resourceID string) {
 }
 
 // CreateTestResource creates a resource and returns its ID for testing
-func (th *TestHelper) CreateTestResource(provider, resourceType string, config map[string]any) string {
+func (th *TestHelper) CreateTestResource(providerName, providerVersion, resourceType string, config map[string]any) string {
 	resourceID := GenerateUniqueResourceID("test-resource")
 
 	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   resourceID,
-		"provider":      provider,
-		"resource_type": resourceType,
-		"config":        config,
+		"resource_id":      resourceID,
+		"provider":         providerName,
+		"provider_version": providerVersion,
+		"resource_type":    resourceType,
+		"config":           config,
 	})
 
 	th.AssertToolSuccess(result, err, "lifecycle-resources-create")

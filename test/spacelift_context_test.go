@@ -159,7 +159,7 @@ func TestSpaceliftContextLifecycleUpdate(t *testing.T) {
 		}
 	}()
 
-	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
+	resourceID := th.CreateTestResource("spacelift-io/spacelift", "1.0.0", "spacelift_context", map[string]any{
 		"name":        initialName,
 		"description": "Initial context description",
 		"labels":      []string{"spacelift-intent-testing"},
@@ -233,7 +233,7 @@ func TestSpaceliftContextLifecycleRefresh(t *testing.T) {
 		}
 	}()
 
-	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
+	resourceID := th.CreateTestResource("spacelift-io/spacelift", "1.0.0", "spacelift_context", map[string]any{
 		"name":        contextName,
 		"description": "A context to test refresh functionality",
 		"labels":      []string{"spacelift-intent-testing"},
@@ -305,7 +305,7 @@ func TestSpaceliftContextLifecycleDelete(t *testing.T) {
 	var contextID string
 
 	// Create the context resource
-	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
+	resourceID := th.CreateTestResource("spacelift-io/spacelift", "1.0.0", "spacelift_context", map[string]any{
 		"name":        contextName,
 		"description": "A context that will be deleted",
 		"labels":      []string{"spacelift-intent-testing"},
@@ -486,7 +486,7 @@ func TestSpaceliftContextResourceOperations(t *testing.T) {
 		}
 	}()
 
-	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
+	resourceID := th.CreateTestResource("spacelift-io/spacelift", "1.0.0", "spacelift_context", map[string]any{
 		"name":        contextName,
 		"description": "A context to test operations tracking",
 		"labels":      []string{"spacelift-intent-testing"},
@@ -545,7 +545,7 @@ func TestSpaceliftContextStateGet(t *testing.T) {
 		}
 	}()
 
-	resourceID := th.CreateTestResource("spacelift-io/spacelift", "spacelift_context", map[string]any{
+	resourceID := th.CreateTestResource("spacelift-io/spacelift", "1.0.0", "spacelift_context", map[string]any{
 		"name":        contextName,
 		"description": "A context to test state retrieval",
 		"labels":      []string{"spacelift-intent-testing"},
