@@ -143,8 +143,8 @@ type ProviderConfig struct {
 	Config  map[string]any `json:"config,omitempty"`
 }
 
-// Key returns a unique cache key for this provider configuration
-func (p *ProviderConfig) Key() string {
+// VersionedName returns a unique cache key for this provider configuration
+func (p *ProviderConfig) VersionedName() string {
 	return p.Name + "@" + p.Version
 }
 
