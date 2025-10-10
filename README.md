@@ -2,7 +2,15 @@
 
 ![Intent](img/intent.png)
 
-Welcome to the Spacelift Intent open-source project! Intent is an MCP Server, that lets infrastructure engineers describe what they need in natural language and provisions it directly through calling provider APIs — skipping the Terraform/OpenTofu configuration layer entirely. It’s early and experimental, so expect rough edges, but that’s where you come in: try it out, tell us what works (and what doesn’t), and join the conversation in GitHub Discussions. This repo hosts the open-source core; there's also a fully managed version, built into Spacelift Platform - check out Spacelift Intent [HERE](https://spacelift.io/intent).
+Spacelift Intent is an MCP Server that lets you define cloud resources in natural language and have them provisioned by directly calling provider APIs - no OpenTofu or Terraform code required.
+- Perfect for prototyping - Quickly test and iterate without writing or committing IaC code.
+- Full state tracking - every resource is recorded for consistent management across sessions. View and manage all created resources.
+- Managed version available on the [Spacelift Platform](https://spacelift.io/intent) - with policies and auditing.
+
+While OpenTofu and Terraform remains king for production use, with Intent you can get up and running much quicker, and spend time on productionizing later.
+
+Note: the project is experimental, and feedback is welcome! Leave questions, ideas, or bug reports in the [GitHub Discussions tab](https://github.com/spacelift-io/spacelift-intent/discussions/categories/general).
+
 
 ![Intent Demo](img/spacelift-intent-demo.gif)
 
