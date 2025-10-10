@@ -381,9 +381,9 @@ func TestImportResource(t *testing.T) {
 }
 
 func TestMultipleVersionsInCache(t *testing.T) {
-	tmpDir := "./test-providers"
-	err := os.MkdirAll(tmpDir, 0755)
+	tmpDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
+	defer os.RemoveAll(tmpDir)
 
 	registryClient := registry.NewOpenTofuClient()
 	adapter := NewAdaptiveManager(tmpDir, registryClient)
