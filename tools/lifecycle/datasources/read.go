@@ -60,7 +60,7 @@ func Read(providerManager types.ProviderManager) i.Tool {
 				},
 				"provider_version": map[string]any{
 					"type":        "string",
-					"description": "Provider version (e.g., '5.0.0')",
+					"description": "Provider version as valid semver (e.g., '5.0.0', '1.2.3')",
 				},
 			},
 			Required: []string{"provider", "data_source_type", "config", "provider_version"},
