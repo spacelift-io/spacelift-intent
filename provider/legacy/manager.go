@@ -103,7 +103,12 @@ func (pm *DefaultManager) getSchema(ctx context.Context, provider *types.Provide
 
 // getProviderInfo returns internal provider info (private helper)
 func (pm *DefaultManager) getProviderInfo(provider *types.ProviderConfig) (*providerInfo, error) {
-	providerInfo, exists := pm.providers[provider.VersionedName()]
+	cacheKey, err := provider.VersionedName()
+	if err != nil {
+		return nil, err
+	}
+
+	providerInfo, exists := pm.providers[cacheKey]
 	if !exists {
 		return nil, fmt.Errorf("provider %s not loaded", provider.Name)
 	}
@@ -154,7 +159,12 @@ func (pm *DefaultManager) GetProviderVersions(ctx context.Context, providerName 
 // LoadProvider downloads and initializes a provider if not already loaded
 func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.ProviderConfig) error {
 	// Check if provider is already loaded
-	if _, exists := pm.providers[provider.VersionedName()]; exists {
+	cacheKey, err := provider.VersionedName()
+	if err != nil {
+		return err
+	}
+
+	if _, exists := pm.providers[cacheKey]; exists {
 		return nil
 	}
 
@@ -183,7 +193,12 @@ func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.Prov
 // downloadAndExtractProvider downloads and extracts a provider binary
 func (pm *DefaultManager) downloadAndExtractProvider(ctx context.Context, providerConfig *types.ProviderConfig, downloadURL string) (string, error) {
 	// Create provider directory using name@version as key
-	providerDir := filepath.Join(pm.tmpDir, strings.ReplaceAll(providerConfig.VersionedName(), "/", "_"))
+	versionedName, err := providerConfig.VersionedName()
+	if err != nil {
+		return "", err
+	}
+
+	providerDir := filepath.Join(pm.tmpDir, strings.ReplaceAll(versionedName, "/", "_"))
 	if err := os.MkdirAll(providerDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create provider directory: %w", err)
 	}
@@ -323,7 +338,12 @@ func (pm *DefaultManager) initializeProvider(ctx context.Context, providerConfig
 
 	// Set additional info and store
 	providerInfo.version = version
-	pm.providers[providerConfig.VersionedName()] = providerInfo
+	cacheKey, err := providerConfig.VersionedName()
+	if err != nil {
+		return fmt.Errorf("failed to get versioned provider name: %w", err)
+	}
+
+	pm.providers[cacheKey] = providerInfo
 
 	return nil
 }

@@ -3,6 +3,8 @@
 
 package types
 
+import "fmt"
+
 type contextKey string
 
 const (
@@ -144,8 +146,17 @@ type ProviderConfig struct {
 }
 
 // VersionedName returns a unique cache key for this provider configuration
-func (p *ProviderConfig) VersionedName() string {
-	return p.Name + "@" + p.Version
+// Both Name and Version must be non-empty strings
+func (p *ProviderConfig) VersionedName() (string, error) {
+	if p.Name == "" {
+		return "", fmt.Errorf("empty provider name")
+	}
+
+	if p.Version == "" {
+		return "", fmt.Errorf("provider %s is missing version", p.Name)
+	}
+
+	return p.Name + "@" + p.Version, nil
 }
 
 // ProviderVersionInfo represents provider version information from registry
