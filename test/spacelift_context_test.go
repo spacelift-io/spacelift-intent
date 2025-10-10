@@ -7,9 +7,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
 // getSharedTestDir creates or reuses a shared local directory for provider caching

@@ -19,8 +19,9 @@ import (
 	"github.com/apparentlymart/opentofu-providers/tofuprovider"
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerops"
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerschema"
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 // NewOpenTofuAdapter creates a new adapter using the opentofu-providers library

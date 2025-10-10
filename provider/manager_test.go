@@ -8,10 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/spacelift-io/spacelift-intent/registry"
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/registry"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 func TestPlanResource(t *testing.T) {

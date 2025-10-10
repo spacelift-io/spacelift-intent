@@ -10,9 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 func newTestSQLiteStorage(t *testing.T) (*SQLiteStorage, context.Context) {

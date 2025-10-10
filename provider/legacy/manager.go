@@ -15,10 +15,11 @@ import (
 	"strings"
 
 	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 var ErrorBinaryNotFound = fmt.Errorf("provider binary not found")

@@ -14,8 +14,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/spacelift-io/spacelift-intent/types"
 	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 // SQLiteStorage implements types.Storage using SQLite

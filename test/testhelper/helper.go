@@ -15,12 +15,13 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/mcptest"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
+
 	"github.com/spacelift-io/spacelift-intent/provider"
 	"github.com/spacelift-io/spacelift-intent/registry"
 	"github.com/spacelift-io/spacelift-intent/storage"
 	"github.com/spacelift-io/spacelift-intent/tools"
-	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
 )
 
 // TestHelper encapsulates test setup and utilities

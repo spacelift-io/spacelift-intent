@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
 // TestServerInitialization tests basic server functionality
