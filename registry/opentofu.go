@@ -248,7 +248,7 @@ func selectCompatibleVersion(versions []types.ProviderVersionInfo, version strin
 			return v.Version, nil
 		}
 	}
-	return "", fmt.Errorf("no compatible version found")
+	return "", fmt.Errorf("version %s not found in available versions", version)
 }
 
 // parseProviderName parses a provider name into namespace and type
