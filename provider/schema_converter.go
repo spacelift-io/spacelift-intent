@@ -266,7 +266,7 @@ func (sc *SchemaConverter) processBlockTypeInfo(blockType providerschema.NestedB
 		blockInfo["properties"] = nestedProperties
 	}
 	if len(nestedRequired) > 0 {
-		blockInfo["required"] = nestedRequired
+		blockInfo["required_properties"] = nestedRequired
 	}
 
 	// Recursively process nested blocks
