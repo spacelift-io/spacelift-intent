@@ -211,26 +211,35 @@ func TestSchemaConverter_Integration_AWS_SecurityGroup(t *testing.T) {
 		assert.Contains(t, ingressAttrs, "protocol", "ingress should have protocol")
 	})
 
-	t.Run("processBlockTypeInfo handles nested blocks", func(t *testing.T) {
+	t.Run("convertSchemaToTypeDescription handles ingress/egress", func(t *testing.T) {
 		result := converter.convertSchemaToTypeDescription("hashicorp/aws", "aws_security_group", sgSchema, "resource")
 
-		// Check ingress block structure
+		// Check ingress property structure
 		ingressProp, ok := result.Properties["ingress"]
 		require.True(t, ok, "Should have ingress property")
 
-		ingressBlock, ok := ingressProp.(map[string]any)
+		ingressMap, ok := ingressProp.(map[string]any)
 		require.True(t, ok, "ingress should be a map")
 
-		assert.Equal(t, true, ingressBlock["is_block"], "ingress should be marked as a block")
-		assert.Contains(t, ingressBlock, "properties", "ingress should have properties")
+		// In AWS provider v6.16.0+, ingress/egress changed from nested blocks to attributes
+		// This test handles both cases for compatibility across provider versions
+		if isBlock, hasIsBlock := ingressMap["is_block"]; hasIsBlock && isBlock == true {
+			// It's a nested block - verify block structure
+			assert.Contains(t, ingressMap, "properties", "ingress block should have properties")
 
-		ingressProps, ok := ingressBlock["properties"].(map[string]any)
-		require.True(t, ok, "ingress properties should be a map")
+			ingressProps, ok := ingressMap["properties"].(map[string]any)
+			require.True(t, ok, "ingress properties should be a map")
 
-		// Verify all properties have correct structure
-		assert.Contains(t, ingressProps, "from_port")
-		assert.Contains(t, ingressProps, "to_port")
-		assert.Contains(t, ingressProps, "protocol")
+			// Verify all properties have correct structure
+			assert.Contains(t, ingressProps, "from_port")
+			assert.Contains(t, ingressProps, "to_port")
+			assert.Contains(t, ingressProps, "protocol")
+		} else {
+			// It's an attribute - verify it has type information
+			assert.Contains(t, ingressMap, "type", "ingress attribute should have type")
+			assert.Contains(t, ingressMap, "usage", "ingress attribute should have usage")
+			t.Logf("Note: ingress is an attribute (type: %v) in this provider version, not a nested block", ingressMap["type"])
+		}
 	})
 }
 
