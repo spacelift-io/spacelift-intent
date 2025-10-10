@@ -284,3 +284,7 @@ go generate ./... && make build
 
 3. Configure your MCP host to use the local binary (see [Installation](#installation) section)
 
+## Database Migrations
+
+Intent automatically runs database migrations to the latest version on startup. For advanced migration operations (migrating to specific versions, rollbacks, etc.), use the [golang-migrate CLI](https://github.com/golang-migrate/migrate/tree/master/cmd/migrate).
+

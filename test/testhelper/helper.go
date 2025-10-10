@@ -50,8 +50,10 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	require.NoError(t, err, "Failed to create database directory")
 
 	// Initialize storage
-	stor, err := storage.NewSQLiteStorage(filepath.Join(dbDir, "state.db"))
+	store, err := storage.NewSQLiteStorage(filepath.Join(dbDir, "state.db"))
 	require.NoError(t, err, "Failed to initialize storage")
+
+	require.NoError(t, store.Migrate())
 
 	// Initialize registry client
 	registryClient := registry.NewOpenTofuClient()
@@ -60,7 +62,7 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	providerManager := provider.NewAdaptiveManager(tempDir, registryClient)
 
 	// Create tool handlers
-	toolHandlers := tools.New(registryClient, providerManager, stor)
+	toolHandlers := tools.New(registryClient, providerManager, store)
 
 	// Convert tools to server tools
 	mcpTools := toolHandlers.Tools()

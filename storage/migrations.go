@@ -16,8 +16,7 @@ import (
 //go:embed migrations/*.sql
 var migrationFS embed.FS
 
-// migrate runs all database migrations using golang-migrate
-func (s *sqliteStorage) migrate() error {
+func (s *SQLiteStorage) Migrate() error {
 	// Create source driver from embedded filesystem
 	sourceDriver, err := iofs.New(migrationFS, "migrations")
 	if err != nil {

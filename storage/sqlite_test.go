@@ -15,12 +15,14 @@ import (
 	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
 )
 
-func newTestSQLiteStorage(t *testing.T) (*sqliteStorage, context.Context) {
+func newTestSQLiteStorage(t *testing.T) (*SQLiteStorage, context.Context) {
 	t.Helper()
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "sqlite.db")
 	store, err := NewSQLiteStorage(dbPath)
 	require.NoError(t, err)
+	// Run migrations for tests
+	require.NoError(t, store.Migrate())
 	t.Cleanup(func() {
 		require.NoError(t, store.db.Close())
 	})
