@@ -123,7 +123,7 @@ func (s *sqliteStorage) createTables() error {
 	}
 
 	// Run migrations
-	if err := s.migrate(ctx); err != nil {
+	if err := s.migrate(); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 

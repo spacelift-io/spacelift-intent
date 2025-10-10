@@ -4,58 +4,41 @@
 package storage
 
 import (
-	"context"
-	"database/sql"
+	"embed"
 	"fmt"
+
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
 
-// migration represents a single database migration
-type migration struct {
-	name string
-	fn   func(context.Context, *sql.Tx) error
-}
+//go:embed migrations/*.sql
+var migrationFS embed.FS
 
-// allMigrations contains all migrations in order
-var allMigrations = []migration{
-	{
-		name: "rename_state_records_version_to_provider_version",
-		fn:   renameStateRecordsVersionColumn,
-	},
-	{
-		name: "add_operations_provider_version",
-		fn:   addOperationsProviderVersion,
-	},
-}
+// migrate runs all database migrations using golang-migrate
+func (s *sqliteStorage) migrate() error {
+	// Create source driver from embedded filesystem
+	sourceDriver, err := iofs.New(migrationFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source driver: %w", err)
+	}
 
-// migrate runs all database migrations in an idempotent manner
-func (s *sqliteStorage) migrate(ctx context.Context) error {
-	for _, m := range allMigrations {
-		tx, err := s.db.BeginTx(ctx, nil)
-		if err != nil {
-			return fmt.Errorf("failed to begin transaction for migration %s: %w", m.name, err)
-		}
+	// Create database driver
+	dbDriver, err := sqlite3.WithInstance(s.db, &sqlite3.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create database driver: %w", err)
+	}
 
-		if err := m.fn(ctx, tx); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("migration %s failed: %w", m.name, err)
-		}
+	// Create migration instance
+	m, err := migrate.NewWithInstance("iofs", sourceDriver, "sqlite3", dbDriver)
+	if err != nil {
+		return fmt.Errorf("failed to create migration instance: %w", err)
+	}
 
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("failed to commit migration %s: %w", m.name, err)
-		}
+	// Run migrations
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil
-}
-
-// renameStateRecordsVersionColumn renames version column to provider_version in state_records table
-func renameStateRecordsVersionColumn(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, "ALTER TABLE state_records RENAME COLUMN version TO provider_version")
-	return err
-}
-
-// addOperationsProviderVersion adds provider_version column to operations table
-func addOperationsProviderVersion(ctx context.Context, tx *sql.Tx) error {
-	_, err := tx.ExecContext(ctx, "ALTER TABLE operations ADD COLUMN provider_version TEXT NOT NULL")
-	return err
 }
