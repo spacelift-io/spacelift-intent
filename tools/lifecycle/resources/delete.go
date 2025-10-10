@@ -14,7 +14,9 @@ import (
 )
 
 type deleteArgs struct {
-	ResourceID string `json:"resource_id"`
+	ResourceID      string  `json:"resource_id"`
+	Provider        *string `json:"provider,omitempty"`
+	ProviderVersion *string `json:"provider_version,omitempty"`
 }
 
 func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool {
@@ -36,6 +38,14 @@ func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"type":        "string",
 					"description": "The unique identifier of the resource to delete",
 				},
+				"provider": map[string]any{
+					"type":        "string",
+					"description": "Provider name (optional, uses stored value if not specified)",
+				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (optional, uses stored value if not specified)",
+				},
 			},
 			Required: []string{"resource_id"},
 		},
@@ -54,11 +64,20 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
 		}
 
+		// Use provided provider/version or fall back to stored values
+		providerConfig := record.GetProvider()
+		if args.Provider != nil && *args.Provider != "" {
+			providerConfig.Name = *args.Provider
+		}
+		if args.ProviderVersion != nil && *args.ProviderVersion != "" {
+			providerConfig.Version = *args.ProviderVersion
+		}
+
 		input := types.ResourceOperationInput{
 			ResourceID:      record.ResourceID,
 			ResourceType:    record.ResourceType,
-			Provider:        record.GetProvider().Name,
-			ProviderVersion: record.GetProvider().Version,
+			Provider:        providerConfig.Name,
+			ProviderVersion: providerConfig.Version,
 			Operation:       "delete",
 			CurrentState:    record.State,
 			ProposedState:   nil, // no proposed state for delete
@@ -78,7 +97,7 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 		}()
 
 		// Delete the resource using the provider manager
-		err = providerManager.DeleteResource(ctx, record.GetProvider(), record.ResourceType, record.State)
+		err = providerManager.DeleteResource(ctx, providerConfig, record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("failed to delete resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -95,8 +114,8 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 		}
 
 		return RespondJSON(map[string]any{
-			"provider":         record.GetProvider().Name,
-			"provider_version": record.GetProvider().Version,
+			"provider":         providerConfig.Name,
+			"provider_version": providerConfig.Name,
 			"resource_id":      args.ResourceID,
 			"status":           "deleted",
 		})

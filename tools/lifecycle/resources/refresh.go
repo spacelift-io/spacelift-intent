@@ -15,7 +15,9 @@ import (
 )
 
 type refreshArgs struct {
-	ResourceID string `json:"resource_id"`
+	ResourceID      string  `json:"resource_id"`
+	Provider        *string `json:"provider,omitempty"`
+	ProviderVersion *string `json:"provider_version,omitempty"`
 }
 
 func Refresh(storage types.Storage, providerManager types.ProviderManager) i.Tool {
@@ -37,6 +39,14 @@ func Refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 					"type":        "string",
 					"description": "The unique identifier of the resource to refresh",
 				},
+				"provider": map[string]any{
+					"type":        "string",
+					"description": "Provider name (optional, uses stored value if not specified)",
+				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (optional, uses stored value if not specified)",
+				},
 			},
 			Required: []string{"resource_id"},
 		},
@@ -55,11 +65,20 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
 		}
 
+		// Use provided providerConfig/version or fall back to stored values
+		providerConfig := record.GetProvider()
+		if args.Provider != nil && *args.Provider != "" {
+			providerConfig.Name = *args.Provider
+		}
+		if args.ProviderVersion != nil && *args.ProviderVersion != "" {
+			providerConfig.Version = *args.ProviderVersion
+		}
+
 		// Parse the stored state
 		input := types.ResourceOperationInput{
 			ResourceID:      args.ResourceID,
-			Provider:        record.GetProvider().Name,
-			ProviderVersion: record.GetProvider().Version,
+			Provider:        providerConfig.Name,
+			ProviderVersion: providerConfig.Version,
 			ResourceType:    record.ResourceType,
 			Operation:       "refresh",
 			CurrentState:    record.State,
@@ -79,7 +98,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}()
 
 		// Refresh the resource using the provider manager
-		stateResult, err := providerManager.RefreshResource(ctx, record.GetProvider(), record.ResourceType, record.State)
+		stateResult, err := providerManager.RefreshResource(ctx, providerConfig, record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("failed to refresh resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -101,8 +120,8 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		if len(stateResult) > 0 {
 			updatedRecord := types.StateRecord{
 				ResourceID:      args.ResourceID,
-				Provider:        record.Provider,
-				ProviderVersion: record.ProviderVersion,
+				Provider:        providerConfig.Name,
+				ProviderVersion: providerConfig.Version,
 				ResourceType:    record.ResourceType,
 				State:           stateResult,
 			}
@@ -121,8 +140,8 @@ func refresh(storage types.Storage, providerManager types.ProviderManager) i.Too
 		}
 
 		return RespondJSON(map[string]any{
-			"provider":         record.GetProvider().Name,
-			"provider_version": record.GetProvider().Version,
+			"provider":         providerConfig.Name,
+			"provider_version": providerConfig.Version,
 			"resource_id":      args.ResourceID,
 			"status":           status,
 			"message":          message,

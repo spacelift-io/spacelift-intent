@@ -14,8 +14,10 @@ import (
 )
 
 type updateArgs struct {
-	ResourceID string         `json:"resource_id"`
-	Config     map[string]any `json:"config"`
+	ResourceID      string         `json:"resource_id"`
+	Provider        *string        `json:"provider,omitempty"`
+	ProviderVersion *string        `json:"provider_version,omitempty"`
+	Config          map[string]any `json:"config"`
 }
 
 func Update(storage types.Storage, providerManager types.ProviderManager) i.Tool {
@@ -40,6 +42,14 @@ func Update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"type":        "string",
 					"description": "Unique identifier of the resource to update",
 				},
+				"provider": map[string]any{
+					"type":        "string",
+					"description": "Provider name (optional, uses stored value if not specified)",
+				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (optional, uses stored value if not specified)",
+				},
 				"config": map[string]any{
 					"type":        "object",
 					"description": "New configuration parameters for the resource",
@@ -62,12 +72,22 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
 		}
 
+		// Use provided provider/version or fall back to stored values
+		providerConfig := record.GetProvider()
+		if args.Provider != nil && *args.Provider != "" {
+			providerConfig.Name = *args.Provider
+		}
+
+		if args.ProviderVersion != nil && *args.ProviderVersion != "" {
+			providerConfig.Version = *args.ProviderVersion
+		}
+
 		// Parse the stored state
 		input := types.ResourceOperationInput{
 			ResourceID:      args.ResourceID,
 			ResourceType:    record.ResourceType,
-			Provider:        record.GetProvider().Name,
-			ProviderVersion: record.GetProvider().Version,
+			Provider:        providerConfig.Name,
+			ProviderVersion: providerConfig.Version,
 			Operation:       "update",
 			CurrentState:    record.State,
 			ProposedState:   args.Config,
@@ -87,7 +107,7 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Update the resource using the provider manager
-		state, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
+		state, err := providerManager.UpdateResource(ctx, providerConfig, record.ResourceType, record.State, args.Config)
 		if err != nil {
 			err = fmt.Errorf("failed to update resource: %w", err)
 			return mcp.NewToolResultError(err.Error()), nil
@@ -98,11 +118,11 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			return mcp.NewToolResultText("{}"), nil
 		}
 
-		// Update state in database
+		// Update state in database with potentially new provider/version
 		updatedRecord := types.StateRecord{
 			ResourceID:      args.ResourceID,
-			Provider:        record.Provider,
-			ProviderVersion: record.ProviderVersion,
+			Provider:        providerConfig.Name,
+			ProviderVersion: providerConfig.Version,
 			ResourceType:    record.ResourceType,
 			State:           state,
 			CreatedAt:       record.CreatedAt, // Keep original creation time
@@ -118,8 +138,8 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}
 
 		return RespondJSON(map[string]any{
-			"provider":         record.GetProvider().Name,
-			"provider_version": record.GetProvider().Version,
+			"provider":         providerConfig.Name,
+			"provider_version": providerConfig.Version,
 			"resource_id":      args.ResourceID,
 			"result":           state,
 			"status":           "updated",
