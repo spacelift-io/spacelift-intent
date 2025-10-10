@@ -54,7 +54,7 @@ func Operations(storage types.Storage) i.Tool {
 				},
 				"provider_version": map[string]any{
 					"type":        "string",
-					"description": "Filter by provider version (e.g., '5.0.0'), if not provided, all versions will be returned",
+					"description": "Filter by provider version as valid semver (e.g., '5.0.0', '1.2.3'), if not provided, all versions will be returned",
 				},
 				"resource_type": map[string]any{
 					"type":        "string",
