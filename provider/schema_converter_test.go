@@ -79,8 +79,8 @@ func TestSchemaConverter_CtyTypeToString(t *testing.T) {
 			expected: "map",
 		},
 		{
-			name:     "complex object type",
-			input:    cty.Object(map[string]cty.Type{
+			name: "complex object type",
+			input: cty.Object(map[string]cty.Type{
 				"name":    cty.String,
 				"age":     cty.Number,
 				"enabled": cty.Bool,
@@ -328,10 +328,10 @@ func TestSchemaConverter_IntegrationTest(t *testing.T) {
 	t.Run("AWS instance-like types", func(t *testing.T) {
 		// Simulate types found in aws_instance resource
 		types := map[string]cty.Type{
-			"id":            cty.String,
-			"ami":           cty.String,
-			"instance_type": cty.String,
-			"tags":          cty.Map(cty.String),
+			"id":              cty.String,
+			"ami":             cty.String,
+			"instance_type":   cty.String,
+			"tags":            cty.Map(cty.String),
 			"security_groups": cty.Set(cty.String),
 			"ebs_block_device": cty.List(cty.Object(map[string]cty.Type{
 				"device_name": cty.String,
@@ -376,10 +376,10 @@ func TestSchemaConverter_IntegrationTest(t *testing.T) {
 		})
 
 		distributionType := cty.Object(map[string]cty.Type{
-			"enabled":                  cty.Bool,
-			"origins":                  cty.Set(originType),
-			"default_cache_behavior":   cacheBehaviorType,
-			"ordered_cache_behaviors":  cty.List(cacheBehaviorType),
+			"enabled":                 cty.Bool,
+			"origins":                 cty.Set(originType),
+			"default_cache_behavior":  cacheBehaviorType,
+			"ordered_cache_behaviors": cty.List(cacheBehaviorType),
 		})
 
 		result := converter.ctyTypeToString(distributionType)
@@ -402,14 +402,14 @@ func TestSchemaConverter_IntegrationTest(t *testing.T) {
 		})
 
 		brokerType := cty.Object(map[string]cty.Type{
-			"broker_name":              cty.String,
-			"engine_type":              cty.String,
-			"engine_version":           cty.String,
-			"host_instance_type":       cty.String,
-			"users":                    cty.Set(userType),
-			"security_groups":          cty.Set(cty.String),
-			"subnet_ids":               cty.Set(cty.String),
-			"publicly_accessible":      cty.Bool,
+			"broker_name":                cty.String,
+			"engine_type":                cty.String,
+			"engine_version":             cty.String,
+			"host_instance_type":         cty.String,
+			"users":                      cty.Set(userType),
+			"security_groups":            cty.Set(cty.String),
+			"subnet_ids":                 cty.Set(cty.String),
+			"publicly_accessible":        cty.Bool,
 			"auto_minor_version_upgrade": cty.Bool,
 		})
 

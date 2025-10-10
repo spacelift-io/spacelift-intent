@@ -398,10 +398,10 @@ func TestSchemaConverter_Integration_AllNestingModes(t *testing.T) {
 
 	// Test various resources to ensure we handle all nesting modes
 	testResources := []string{
-		"aws_instance",           // Has NestingList and NestingSet blocks
-		"aws_security_group",     // Has NestingSet blocks
+		"aws_instance",                // Has NestingList and NestingSet blocks
+		"aws_security_group",          // Has NestingSet blocks
 		"aws_cloudfront_distribution", // Has complex nesting
-		"aws_vpc",                // Simpler structure
+		"aws_vpc",                     // Simpler structure
 	}
 
 	for _, resourceType := range testResources {
@@ -448,7 +448,7 @@ func TestSchemaConverter_Integration_AllNestingModes(t *testing.T) {
 
 // connectToProvider is a helper function to connect to a provider for testing
 // It downloads the provider and starts it using the GRPC plugin interface
-func connectToProvider(ctx context.Context, providerName, version string) (tofuprovider.GRPCPluginProvider, error) {
+func connectToProvider(ctx context.Context, providerName, version string) (tofuprovider.GRPCPluginProvider, error) { //nolint:unparam
 	// Create temporary directory for provider binaries
 	tmpDir, err := os.MkdirTemp("", "provider-test-*")
 	if err != nil {
