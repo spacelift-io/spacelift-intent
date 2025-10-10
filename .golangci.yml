@@ -115,12 +115,12 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/spacelift-io/spacectl)
+        - prefix(github.com/spacelift-io/spacelift-intent)
     gofmt:
       simplify: true
     goimports:
       local-prefixes:
-        - github.com/spacelift-io/backend
+        - github.com/spacelift-io/spacelift-intent
   exclusions:
     generated: lax
     paths:

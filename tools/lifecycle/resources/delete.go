@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -54,12 +55,13 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 		}
 
 		input := types.ResourceOperationInput{
-			ResourceID:    record.ResourceID,
-			ResourceType:  record.ResourceType,
-			Provider:      record.Provider,
-			Operation:     "delete",
-			CurrentState:  record.State,
-			ProposedState: nil, // no proposed state for delete
+			ResourceID:      record.ResourceID,
+			ResourceType:    record.ResourceType,
+			Provider:        record.GetProvider().Name,
+			ProviderVersion: record.GetProvider().Version,
+			Operation:       "delete",
+			CurrentState:    record.State,
+			ProposedState:   nil, // no proposed state for delete
 		}
 
 		operation, err := newResourceOperation(input)
@@ -93,8 +95,10 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 		}
 
 		return RespondJSON(map[string]any{
-			"resource_id": args.ResourceID,
-			"status":      "deleted",
+			"provider":         record.GetProvider().Name,
+			"provider_version": record.GetProvider().Version,
+			"resource_id":      args.ResourceID,
+			"status":           "deleted",
 		})
 	})
 }

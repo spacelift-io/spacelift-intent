@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -17,7 +18,7 @@ type createArgs struct {
 	Provider        string         `json:"provider"`
 	ResourceType    string         `json:"resource_type"`
 	Config          map[string]any `json:"config"`
-	ProviderVersion *string        `json:"provider_version,omitempty"`
+	ProviderVersion string         `json:"provider_version"`
 	ProviderConfig  map[string]any `json:"provider_config,omitempty"`
 }
 
@@ -33,7 +34,10 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-create"),
 		Description: "Create a new managed resource of any type from any provider with required ID, " +
-			"then store in the state. Core tool for the Execution Phase - handles internal " +
+			"then store in the state. " +
+			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
+			"Do not assume provider names or versions - always search first. " +
+			"\n\nCore tool for the Execution Phase - handles internal " +
 			"planning and application automatically through the MCP abstraction layer. " +
 			"Validates configuration, enforces policies, and manages state persistence. " +
 			"\n\nArgument Handling: Ensure ALL required arguments are provided in config to " +
@@ -64,8 +68,12 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 					"type":        "object",
 					"description": "Configuration parameters for the resource",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"resource_id", "provider", "resource_type", "config"},
+			Required: []string{"resource_id", "provider", "resource_type", "config", "provider_version"},
 		},
 	}, Handler: create(storage, providerManager)}
 }
@@ -82,12 +90,13 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}
 
 		input := types.ResourceOperationInput{
-			Operation:     "create",
-			ResourceID:    args.ResourceID,
-			ResourceType:  args.ResourceType,
-			Provider:      args.Provider,
-			CurrentState:  nil, // no current state for create
-			ProposedState: args.Config,
+			Operation:       "create",
+			ResourceID:      args.ResourceID,
+			ResourceType:    args.ResourceType,
+			Provider:        args.Provider,
+			ProviderVersion: args.ProviderVersion,
+			CurrentState:    nil, // no current state for create
+			ProposedState:   args.Config,
 		}
 
 		operation, err := newResourceOperation(input)
@@ -112,20 +121,13 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			return mcp.NewToolResultText("{}"), nil
 		}
 
-		// Get actual provider version
-		version, err := providerManager.GetProviderVersion(ctx, args.Provider)
-		if err != nil {
-			// Fallback to "latest" if we can't get the version
-			version = "latest"
-		}
-
 		// Persist state to database
 		record := types.StateRecord{
-			ResourceID:   args.ResourceID,
-			Provider:     args.Provider,
-			ResourceType: args.ResourceType,
-			Version:      version,
-			State:        state,
+			ResourceID:      args.ResourceID,
+			Provider:        args.Provider,
+			ResourceType:    args.ResourceType,
+			ProviderVersion: args.ProviderVersion,
+			State:           state,
 		}
 
 		// Add operation context for automatic history tracking
@@ -140,9 +142,11 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		operation.Failed = nil
 
 		return RespondJSON(map[string]any{
-			"resource_id": args.ResourceID,
-			"result":      state,
-			"status":      "created",
+			"resource_id":      args.ResourceID,
+			"provider":         args.GetProvider().Name,
+			"provider_version": args.GetProvider().Version,
+			"result":           state,
+			"status":           "created",
 		})
 	})
 }

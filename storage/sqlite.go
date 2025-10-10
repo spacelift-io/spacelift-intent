@@ -14,17 +14,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/spacelift-io/spacelift-intent/types"
 	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
-// sqliteStorage implements types.Storage using SQLite
-type sqliteStorage struct {
+// SQLiteStorage implements types.Storage using SQLite
+type SQLiteStorage struct {
 	db *sql.DB
 }
 
 // NewSQLiteStorage creates a new SQLite-based storage that implements all storage interfaces
-func NewSQLiteStorage(dbPath string) (*sqliteStorage, error) {
+func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
@@ -35,98 +36,13 @@ func NewSQLiteStorage(dbPath string) (*sqliteStorage, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	storage := &sqliteStorage{db: db}
-
-	if err := storage.createTables(); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to create tables: %w", err)
-	}
+	storage := &SQLiteStorage{db: db}
 
 	return storage, nil
 }
 
-// createTables creates the necessary database tables
-func (s *sqliteStorage) createTables() error {
-	ctx := context.Background()
-	// Enable foreign key constraints
-	if _, err := s.db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
-		return fmt.Errorf("failed to enable foreign keys: %w", err)
-	}
-
-	schema := `
-	CREATE TABLE IF NOT EXISTS state_records (
-		id TEXT PRIMARY KEY,
-		provider TEXT NOT NULL,
-		version TEXT NOT NULL,
-		resource_type TEXT NOT NULL,
-		state TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-	
-	CREATE TABLE IF NOT EXISTS dependency_edges (
-		from_resource_id TEXT NOT NULL,
-		to_resource_id TEXT NOT NULL,
-		dependency_type TEXT NOT NULL,
-		explanation TEXT DEFAULT '',
-		field_mappings TEXT DEFAULT '[]',
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (from_resource_id, to_resource_id),
-		FOREIGN KEY (from_resource_id) REFERENCES state_records(id) ON DELETE CASCADE,
-		FOREIGN KEY (to_resource_id) REFERENCES state_records(id) ON DELETE CASCADE
-	);
-	
-	CREATE TABLE IF NOT EXISTS timeline_events (
-		id TEXT PRIMARY KEY,
-		resource_id TEXT,
-		operation TEXT NOT NULL,
-		changed_by TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-	
-	CREATE INDEX IF NOT EXISTS idx_provider_type ON state_records(provider, resource_type);
-	CREATE INDEX IF NOT EXISTS idx_state_created_at ON state_records(created_at);
-	CREATE INDEX IF NOT EXISTS idx_dependency_from ON dependency_edges(from_resource_id);
-	CREATE INDEX IF NOT EXISTS idx_dependency_to ON dependency_edges(to_resource_id);
-	CREATE INDEX IF NOT EXISTS idx_timeline_resource ON timeline_events(resource_id);
-	CREATE INDEX IF NOT EXISTS idx_timeline_created_at ON timeline_events(created_at);
-	CREATE INDEX IF NOT EXISTS idx_timeline_operation ON timeline_events(operation);
-	`
-
-	_, err := s.db.ExecContext(ctx, schema)
-	if err != nil {
-		return err
-	}
-
-	operationsSchema := `
-	CREATE TABLE IF NOT EXISTS operations (
-		id TEXT PRIMARY KEY,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		allow TEXT DEFAULT '',
-		deny TEXT DEFAULT '',
-		failed TEXT DEFAULT '',
-		resource_id TEXT NOT NULL,
-		resource_type TEXT NOT NULL,
-		provider TEXT NOT NULL,
-		operation TEXT NOT NULL,
-		current_state TEXT DEFAULT '',
-		proposed_state TEXT DEFAULT ''
-	);
-
-	CREATE INDEX IF NOT EXISTS idx_operations_resource ON operations(resource_id);
-	CREATE INDEX IF NOT EXISTS idx_operations_type ON operations(resource_type);
-	CREATE INDEX IF NOT EXISTS idx_operations_provider ON operations(provider);
-	`
-
-	_, err = s.db.ExecContext(ctx, operationsSchema)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // SaveState stores a state record and automatically records history if context provided
-func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord) error {
+func (s *SQLiteStorage) SaveState(ctx context.Context, record types.StateRecord) error {
 	// Serialize state to JSON
 	stateJSON, err := json.Marshal(record.State)
 	if err != nil {
@@ -135,11 +51,11 @@ func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord)
 
 	// Save the state
 	query := `
-	INSERT OR REPLACE INTO state_records (id, provider, version, resource_type, state, created_at)
+	INSERT OR REPLACE INTO state_records (id, provider, provider_version, resource_type, state, created_at)
 	VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 	`
 
-	_, err = s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.Version, record.ResourceType, string(stateJSON))
+	_, err = s.db.ExecContext(ctx, query, record.ResourceID, record.Provider, record.ProviderVersion, record.ResourceType, string(stateJSON))
 	if err != nil {
 		return err
 	}
@@ -162,9 +78,9 @@ func (s *sqliteStorage) SaveState(ctx context.Context, record types.StateRecord)
 }
 
 // GetState retrieves a state record by ID
-func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRecord, error) {
+func (s *SQLiteStorage) GetState(ctx context.Context, id string) (*types.StateRecord, error) {
 	query := `
-	SELECT id, provider, version, resource_type, state, created_at
+	SELECT id, provider, provider_version, resource_type, state, created_at
 	FROM state_records
 	WHERE id = ?
 	`
@@ -173,7 +89,7 @@ func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRe
 
 	var record types.StateRecord
 	var stateJSON string
-	err := row.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
+	err := row.Scan(&record.ResourceID, &record.Provider, &record.ProviderVersion, &record.ResourceType, &stateJSON, &record.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -193,9 +109,9 @@ func (s *sqliteStorage) GetState(ctx context.Context, id string) (*types.StateRe
 }
 
 // ListStates returns all state records
-func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, error) {
+func (s *SQLiteStorage) ListStates(ctx context.Context) ([]types.StateRecord, error) {
 	query := `
-	SELECT id, provider, version, resource_type, state, created_at
+	SELECT id, provider, provider_version, resource_type, state, created_at
 	FROM state_records
 	ORDER BY created_at DESC
 	`
@@ -210,7 +126,7 @@ func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, er
 	for rows.Next() {
 		var record types.StateRecord
 		var stateJSON string
-		err := rows.Scan(&record.ResourceID, &record.Provider, &record.Version, &record.ResourceType, &stateJSON, &record.CreatedAt)
+		err := rows.Scan(&record.ResourceID, &record.Provider, &record.ProviderVersion, &record.ResourceType, &stateJSON, &record.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -230,13 +146,13 @@ func (s *sqliteStorage) ListStates(ctx context.Context) ([]types.StateRecord, er
 }
 
 // UpdateState updates an existing state record
-func (s *sqliteStorage) UpdateState(ctx context.Context, record types.StateRecord) error {
+func (s *SQLiteStorage) UpdateState(ctx context.Context, record types.StateRecord) error {
 	// This is essentially the same as SaveState since we use INSERT OR REPLACE
 	return s.SaveState(ctx, record)
 }
 
 // DeleteState removes a state record by ID and automatically records history if context provided
-func (s *sqliteStorage) DeleteState(ctx context.Context, id string) error {
+func (s *SQLiteStorage) DeleteState(ctx context.Context, id string) error {
 	// Delete the state
 	query := `DELETE FROM state_records WHERE id = ?`
 	_, err := s.db.ExecContext(ctx, query, id)
@@ -262,7 +178,7 @@ func (s *sqliteStorage) DeleteState(ctx context.Context, id string) error {
 }
 
 // Close closes the database connection
-func (s *sqliteStorage) Close() error {
+func (s *SQLiteStorage) Close() error {
 	return s.db.Close()
 }
 
@@ -281,7 +197,7 @@ func (s *sqliteStorage) Close() error {
 // 1. from_resource_id = instance; to_resource_id = instance_profile
 // 2. from_resource_id = instance_profile; to_resource_id = ec2-role
 // ec2-role is a dependency for the instance_profile, and instance_profile is a dependent for ec2-role
-func (s *sqliteStorage) AddDependency(ctx context.Context, edge types.DependencyEdge) error {
+func (s *SQLiteStorage) AddDependency(ctx context.Context, edge types.DependencyEdge) error {
 	// Serialize field mappings to JSON
 	fieldMappingsJSON, err := json.Marshal(edge.FieldMappings)
 	if err != nil {
@@ -297,14 +213,14 @@ func (s *sqliteStorage) AddDependency(ctx context.Context, edge types.Dependency
 }
 
 // RemoveDependency removes a dependency edge
-func (s *sqliteStorage) RemoveDependency(ctx context.Context, fromID, toID string) error {
+func (s *SQLiteStorage) RemoveDependency(ctx context.Context, fromID, toID string) error {
 	query := `DELETE FROM dependency_edges WHERE from_resource_id = ? AND to_resource_id = ?`
 	_, err := s.db.ExecContext(ctx, query, fromID, toID)
 	return err
 }
 
 // GetDependencies returns all dependencies for a resource, meaning what this resource depends on (what needs to be created before this resource)
-func (s *sqliteStorage) GetDependencies(ctx context.Context, resourceID string) ([]types.DependencyEdge, error) {
+func (s *SQLiteStorage) GetDependencies(ctx context.Context, resourceID string) ([]types.DependencyEdge, error) {
 	query := `
 	SELECT from_resource_id, to_resource_id, dependency_type, explanation, field_mappings, created_at
 	FROM dependency_edges
@@ -342,7 +258,7 @@ func (s *sqliteStorage) GetDependencies(ctx context.Context, resourceID string) 
 }
 
 // GetDependents returns all dependents for a resource, meaning what depends on this resource
-func (s *sqliteStorage) GetDependents(ctx context.Context, resourceID string) ([]types.DependencyEdge, error) {
+func (s *SQLiteStorage) GetDependents(ctx context.Context, resourceID string) ([]types.DependencyEdge, error) {
 	query := `
 	SELECT from_resource_id, to_resource_id, dependency_type, explanation, field_mappings, created_at
 	FROM dependency_edges
@@ -382,7 +298,7 @@ func (s *sqliteStorage) GetDependents(ctx context.Context, resourceID string) ([
 // Timeline operations
 
 // addTimelineEvent is an internal method to record timeline events (used by state operations)
-func (s *sqliteStorage) addTimelineEvent(ctx context.Context, event types.TimelineEvent) error {
+func (s *SQLiteStorage) addTimelineEvent(ctx context.Context, event types.TimelineEvent) error {
 	id, err := uuid.NewV7()
 	if err != nil {
 		return fmt.Errorf("failed to generate event ID: %w", err)
@@ -398,7 +314,7 @@ func (s *sqliteStorage) addTimelineEvent(ctx context.Context, event types.Timeli
 }
 
 // GetTimeline returns timeline events based on query parameters with pagination
-func (s *sqliteStorage) GetTimeline(ctx context.Context, query types.TimelineQuery) (*types.TimelineResponse, error) {
+func (s *SQLiteStorage) GetTimeline(ctx context.Context, query types.TimelineQuery) (*types.TimelineResponse, error) {
 	// Set defaults
 	if query.Limit <= 0 {
 		query.Limit = 50
@@ -477,7 +393,7 @@ func (s *sqliteStorage) GetTimeline(ctx context.Context, query types.TimelineQue
 }
 
 // getCurrentTimestamp returns the current timestamp in RFC3339 format
-func (s *sqliteStorage) getCurrentTimestamp() string {
+func (s *SQLiteStorage) getCurrentTimestamp() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
 
@@ -488,10 +404,10 @@ type ResourceReference struct {
 	ReferencedField string
 }
 
-func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation types.ResourceOperation) error {
+func (s *SQLiteStorage) SaveResourceOperation(ctx context.Context, operation types.ResourceOperation) error {
 	query := `
-	INSERT INTO operations (id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed)
-	VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+	INSERT INTO operations (id, resource_id, resource_type, provider, provider_version, operation, current_state, proposed_state, created_at, failed)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
 	`
 
 	currentState, err := json.Marshal(operation.CurrentState)
@@ -513,6 +429,7 @@ func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation typ
 		operation.ResourceID,
 		operation.ResourceType,
 		operation.Provider,
+		operation.ProviderVersion,
 		operation.Operation,
 		string(currentState),
 		string(proposedState),
@@ -521,9 +438,9 @@ func (s *sqliteStorage) SaveResourceOperation(ctx context.Context, operation typ
 	return err
 }
 
-func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.ResourceOperationsArgs) ([]types.ResourceOperation, error) {
+func (s *SQLiteStorage) ListResourceOperations(ctx context.Context, args types.ResourceOperationsArgs) ([]types.ResourceOperation, error) {
 	query := `
-	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed
+	SELECT id, resource_id, resource_type, provider, provider_version, operation, current_state, proposed_state, created_at, failed
 	FROM operations 
 	WHERE 1=1
 	`
@@ -540,6 +457,10 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 	if args.Provider != nil {
 		query += " AND provider = ?"
 		vars = append(vars, *args.Provider)
+	}
+	if args.ProviderVersion != nil {
+		query += " AND provider_version = ?"
+		vars = append(vars, *args.ProviderVersion)
 	}
 	query += " ORDER BY datetime(created_at) DESC"
 
@@ -574,6 +495,7 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 			&operation.ResourceID,
 			&operation.ResourceType,
 			&operation.Provider,
+			&operation.ProviderVersion,
 			&operation.Operation,
 			&currentStateJSON,
 			&proposedStateJSON,
@@ -599,9 +521,9 @@ func (s *sqliteStorage) ListResourceOperations(ctx context.Context, args types.R
 	return operations, rows.Err()
 }
 
-func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID string) (*types.ResourceOperation, error) {
+func (s *SQLiteStorage) GetResourceOperation(ctx context.Context, resourceID string) (*types.ResourceOperation, error) {
 	query := `
-	SELECT id, resource_id, resource_type, provider, operation, current_state, proposed_state, created_at, failed
+	SELECT id, resource_id, resource_type, provider, provider_version, operation, current_state, proposed_state, created_at, failed
 	FROM operations 
 	WHERE resource_id = ?
 	ORDER BY created_at DESC
@@ -618,6 +540,7 @@ func (s *sqliteStorage) GetResourceOperation(ctx context.Context, resourceID str
 		&operation.ResourceID,
 		&operation.ResourceType,
 		&operation.Provider,
+		&operation.ProviderVersion,
 		&operation.Operation,
 		&currentStateJSON,
 		&proposedStateJSON,

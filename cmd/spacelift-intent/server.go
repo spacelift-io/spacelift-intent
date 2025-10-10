@@ -7,14 +7,13 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path/filepath"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+
 	"github.com/spacelift-io/spacelift-intent/instructions"
 	"github.com/spacelift-io/spacelift-intent/provider"
 	"github.com/spacelift-io/spacelift-intent/registry"
-	"github.com/spacelift-io/spacelift-intent/storage"
 	"github.com/spacelift-io/spacelift-intent/tools"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
@@ -31,8 +30,9 @@ type Server struct {
 
 // Config holds configuration for standalone server
 type Config struct {
-	TmpDir string
-	DBDir  string
+	TmpDir  string
+	DBDir   string
+	Storage types.Storage
 }
 
 // newServer creates a new standalone server instance
@@ -46,22 +46,15 @@ func newServer(config *Config) (*Server, error) {
 		return nil, err
 	}
 
-	// Create state storage
-	dbPath := filepath.Join(config.DBDir, "state.db")
-	stateStorage, err := storage.NewSQLiteStorage(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create state storage: %w", err)
-	}
-
 	// Create services
 	registryClient := registry.NewOpenTofuClient()
 	providerManager := provider.NewAdaptiveManager(config.TmpDir, registryClient)
-	toolHandlers := tools.New(registryClient, providerManager, stateStorage)
+	toolHandlers := tools.New(registryClient, providerManager, config.Storage)
 
 	// Create server
 	s := &Server{
 		toolHandlers:    toolHandlers,
-		storage:         stateStorage,
+		storage:         config.Storage,
 		providerManager: providerManager,
 		config:          config,
 	}

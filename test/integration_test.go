@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
 // TestServerInitialization tests basic server functionality
@@ -86,7 +87,8 @@ func TestProviderDescribe(t *testing.T) {
 	defer th.Cleanup()
 
 	result, err := th.CallTool("provider-describe", map[string]any{
-		"provider": "hashicorp/random",
+		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
 	})
 	th.AssertToolSuccess(result, err, "provider-describe")
 
@@ -100,8 +102,9 @@ func TestResourceDescribe(t *testing.T) {
 	defer th.Cleanup()
 
 	result, err := th.CallTool("provider-resources-describe", map[string]any{
-		"provider":      "hashicorp/random",
-		"resource_type": "random_string",
+		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
+		"resource_type":    "random_string",
 	})
 	th.AssertToolSuccess(result, err, "provider-resources-describe")
 
@@ -119,9 +122,10 @@ func TestResourceLifecycleCreate(t *testing.T) {
 	defer th.CleanupResource(resourceID)
 
 	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   resourceID,
-		"provider":      "hashicorp/random",
-		"resource_type": "random_string",
+		"resource_id":      resourceID,
+		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
+		"resource_type":    "random_string",
 		"config": map[string]any{
 			"length":  8,
 			"special": true,
@@ -139,7 +143,7 @@ func TestResourceLifecycleUpdate(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_string", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_string", map[string]any{
 		"length":  8,
 		"special": true,
 	})
@@ -183,7 +187,7 @@ func TestResourceLifecycleRefresh(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_string", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_string", map[string]any{
 		"length":  8,
 		"special": true,
 	})
@@ -203,7 +207,7 @@ func TestResourceLifecycleDelete(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_string", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_string", map[string]any{
 		"length":  8,
 		"special": true,
 	})
@@ -250,7 +254,7 @@ func TestResourceOperations(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_string", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_string", map[string]any{
 		"length":  8,
 		"special": true,
 	})
@@ -282,7 +286,7 @@ func TestStateGet(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_pet", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_pet", map[string]any{
 		"length": 2,
 	})
 	defer th.CleanupResource(resourceID)
@@ -302,7 +306,7 @@ func TestStateList(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_pet", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_pet", map[string]any{
 		"length": 2,
 	})
 	defer th.CleanupResource(resourceID)
@@ -319,7 +323,7 @@ func TestStateTimeline(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_pet", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_pet", map[string]any{
 		"length": 2,
 	})
 	defer th.CleanupResource(resourceID)
@@ -337,7 +341,7 @@ func TestStateEject(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	resourceID := th.CreateTestResource("hashicorp/random", "random_pet", map[string]any{
+	resourceID := th.CreateTestResource("hashicorp/random", "3.6.0", "random_pet", map[string]any{
 		"length": 2,
 	})
 
@@ -361,6 +365,7 @@ func TestDataSourceDescribe(t *testing.T) {
 
 	result, err := th.CallTool("provider-datasources-describe", map[string]any{
 		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
 		"data_source_type": "random_string",
 	})
 
@@ -381,6 +386,7 @@ func TestDataSourceRead(t *testing.T) {
 
 	result, err := th.CallTool("lifecycle-datasources-read", map[string]any{
 		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
 		"data_source_type": "random_string",
 		"config": map[string]any{
 			"length":  8,
@@ -408,9 +414,10 @@ func TestDependencyManagement(t *testing.T) {
 
 	// Create parent resource
 	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   parentResourceID,
-		"provider":      "hashicorp/random",
-		"resource_type": "random_string",
+		"resource_id":      parentResourceID,
+		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
+		"resource_type":    "random_string",
 		"config": map[string]any{
 			"length": 6,
 		},
@@ -420,9 +427,10 @@ func TestDependencyManagement(t *testing.T) {
 
 	// Create child resource
 	result, err = th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   childResourceID,
-		"provider":      "hashicorp/random",
-		"resource_type": "random_pet",
+		"resource_id":      childResourceID,
+		"provider":         "hashicorp/random",
+		"provider_version": "3.6.0",
+		"resource_type":    "random_pet",
 		"config": map[string]any{
 			"length": 2,
 		},

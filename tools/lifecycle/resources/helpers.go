@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mark3labs/mcp-go/mcp"
+
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 

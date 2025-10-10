@@ -141,7 +141,7 @@ func (c *openTofuClient) GetProviderVersions(ctx context.Context, providerName s
 }
 
 // GetProviderDownload gets download information for a provider
-func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName string, version *string) (*types.DownloadInfo, error) {
+func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName string, version string) (*types.DownloadInfo, error) {
 	// Parse provider name
 	namespace, providerType, err := parseProviderName(providerName)
 	if err != nil {
@@ -242,20 +242,13 @@ func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, pro
 	return versions.Versions, nil
 }
 
-// selectCompatibleVersion selects the latest version that supports protocol 5
-// TODO: support multiple protocols in the future
-func selectCompatibleVersion(versions []types.ProviderVersionInfo, version *string) (string, error) {
+func selectCompatibleVersion(versions []types.ProviderVersionInfo, version string) (string, error) {
 	for _, v := range versions {
-		for _, protocol := range v.Protocols {
-			if protocol == "5.0" {
-				return v.Version, nil
-			}
-		}
-		if version != nil && *version == v.Version {
+		if version == v.Version {
 			return v.Version, nil
 		}
 	}
-	return "", fmt.Errorf("no compatible version found")
+	return "", fmt.Errorf("version %s not found in available versions", version)
 }
 
 // parseProviderName parses a provider name into namespace and type
@@ -270,19 +263,6 @@ func parseProviderName(providerName string) (namespace, providerType string, err
 	}
 
 	return parts[0], parts[1], nil
-}
-
-// versionInfo represents provider version information from registry
-type versionInfo struct {
-	Version   string     `json:"version"`
-	Protocols []string   `json:"protocols"`
-	Platforms []platform `json:"platforms"`
-}
-
-// platform represents a supported platform
-type platform struct {
-	OS   string `json:"os"`
-	Arch string `json:"arch"`
 }
 
 // versionsResponse represents the registry response for available versions

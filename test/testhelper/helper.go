@@ -15,12 +15,13 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/mcptest"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
+
 	"github.com/spacelift-io/spacelift-intent/provider"
 	"github.com/spacelift-io/spacelift-intent/registry"
 	"github.com/spacelift-io/spacelift-intent/storage"
 	"github.com/spacelift-io/spacelift-intent/tools"
-	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
 )
 
 // TestHelper encapsulates test setup and utilities
@@ -50,8 +51,10 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	require.NoError(t, err, "Failed to create database directory")
 
 	// Initialize storage
-	stor, err := storage.NewSQLiteStorage(filepath.Join(dbDir, "state.db"))
+	store, err := storage.NewSQLiteStorage(filepath.Join(dbDir, "state.db"))
 	require.NoError(t, err, "Failed to initialize storage")
+
+	require.NoError(t, store.Migrate())
 
 	// Initialize registry client
 	registryClient := registry.NewOpenTofuClient()
@@ -60,7 +63,7 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	providerManager := provider.NewAdaptiveManager(tempDir, registryClient)
 
 	// Create tool handlers
-	toolHandlers := tools.New(registryClient, providerManager, stor)
+	toolHandlers := tools.New(registryClient, providerManager, store)
 
 	// Convert tools to server tools
 	mcpTools := toolHandlers.Tools()
@@ -217,14 +220,15 @@ func (th *TestHelper) CleanupResource(resourceID string) {
 }
 
 // CreateTestResource creates a resource and returns its ID for testing
-func (th *TestHelper) CreateTestResource(provider, resourceType string, config map[string]any) string {
+func (th *TestHelper) CreateTestResource(providerName, providerVersion, resourceType string, config map[string]any) string {
 	resourceID := GenerateUniqueResourceID("test-resource")
 
 	result, err := th.CallTool("lifecycle-resources-create", map[string]any{
-		"resource_id":   resourceID,
-		"provider":      provider,
-		"resource_type": resourceType,
-		"config":        config,
+		"resource_id":      resourceID,
+		"provider":         providerName,
+		"provider_version": providerVersion,
+		"resource_type":    resourceType,
+		"config":           config,
 	})
 
 	th.AssertToolSuccess(result, err, "lifecycle-resources-create")

@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
 // TestRabbitMQBrokerLifecycle tests creating and deleting an AWS MQ RabbitMQ broker

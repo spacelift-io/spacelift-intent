@@ -9,10 +9,13 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/urfave/cli/v2"
+
+	"github.com/spacelift-io/spacelift-intent/storage"
 )
 
 func main() {
@@ -24,6 +27,17 @@ func main() {
 		Action: func(c *cli.Context) error {
 			tmpDir := c.String(tmpDirFlag.Name)
 			dbDir := c.String(dbDirFlag.Name)
+
+			dbPath := filepath.Join(dbDir, "state.db")
+			stateStorage, err := storage.NewSQLiteStorage(dbPath)
+			if err != nil {
+				return fmt.Errorf("failed to create state storage: %w", err)
+			}
+			defer stateStorage.Close()
+
+			if err := stateStorage.Migrate(); err != nil {
+				return fmt.Errorf("failed to run migrations: %w", err)
+			}
 
 			// Create standalone server
 			config := &Config{

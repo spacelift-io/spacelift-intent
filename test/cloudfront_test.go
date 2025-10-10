@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
 )
 
 // TestCloudFrontDistributionCreate tests creating a CloudFront distribution using lifecycle-resources-create

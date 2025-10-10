@@ -8,14 +8,15 @@ import (
 	"fmt"
 
 	"github.com/mark3labs/mcp-go/mcp"
+
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 type describeArgs struct {
-	Provider        string  `json:"provider"`
-	DataSourceType  string  `json:"data_source_type"`
-	ProviderVersion *string `json:"provider_version,omitempty"`
+	Provider        string `json:"provider"`
+	DataSourceType  string `json:"data_source_type"`
+	ProviderVersion string `json:"provider_version"`
 }
 
 func (args describeArgs) GetProvider() *types.ProviderConfig {
@@ -29,7 +30,9 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("provider-datasources-describe"),
 		Description: "Get the schema and documentation for a specific data source type. " +
-			"Essential for Discovery Phase - use this to understand data source capabilities, " +
+			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
+			"Do not assume provider names or versions - always search first. " +
+			"\n\nEssential for Discovery Phase - use this to understand data source capabilities, " +
 			"required arguments, and available outputs before querying external data. Critical " +
 			"for Configuration Phase to validate data source definitions and ensure proper " +
 			"argument handling. " +
@@ -49,8 +52,12 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 					"type":        "string",
 					"description": "The type of the data source (e.g., 'spacelift_context', 'random_string', 'aws_ami')",
 				},
+				"provider_version": map[string]any{
+					"type":        "string",
+					"description": "Provider version (e.g., '5.0.0')",
+				},
 			},
-			Required: []string{"provider", "data_source_type"},
+			Required: []string{"provider", "data_source_type", "provider_version"},
 		},
 	}, Handler: describe(providerManager)}
 }
@@ -63,6 +70,10 @@ func describe(providerManager types.ProviderManager) i.ToolHandler {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to describe data source: %v", err)), nil
 		}
 
-		return i.RespondJSON(description)
+		return i.RespondJSON(map[string]any{
+			"provider":         args.GetProvider().Name,
+			"provider_version": args.GetProvider().Version,
+			"result":           description,
+		})
 	})
 }

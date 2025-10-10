@@ -40,7 +40,7 @@ type ProviderManager interface {
 // RegistryClient interface defines operations for interacting with provider registry
 type RegistryClient interface {
 	Download(ctx context.Context, url string) (io.ReadCloser, error)
-	GetProviderDownload(ctx context.Context, providerName string, version *string) (*DownloadInfo, error)
+	GetProviderDownload(ctx context.Context, providerName string, version string) (*DownloadInfo, error)
 	GetProviderVersions(ctx context.Context, providerName string) ([]ProviderVersionInfo, error)
 	SearchProviders(ctx context.Context, query string) ([]ProviderSearchResult, error)
 	FindProvider(ctx context.Context, query string) (*ProviderSearchResult, error)

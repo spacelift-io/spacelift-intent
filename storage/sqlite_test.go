@@ -10,17 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
-func newTestSQLiteStorage(t *testing.T) (*sqliteStorage, context.Context) {
+func newTestSQLiteStorage(t *testing.T) (*SQLiteStorage, context.Context) {
 	t.Helper()
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "sqlite.db")
 	store, err := NewSQLiteStorage(dbPath)
 	require.NoError(t, err)
+	// Run migrations for tests
+	require.NoError(t, store.Migrate())
 	t.Cleanup(func() {
 		require.NoError(t, store.db.Close())
 	})
@@ -116,12 +119,13 @@ func TestSQLiteListResourceOperations(t *testing.T) {
 			op: types.ResourceOperation{
 				ID: "op-0",
 				ResourceOperationInput: types.ResourceOperationInput{
-					ResourceID:    "res-1",
-					ResourceType:  "aws_instance",
-					Provider:      "aws",
-					Operation:     "create",
-					CurrentState:  map[string]any{"status": "current-0"},
-					ProposedState: map[string]any{"status": "next-0"},
+					ResourceID:      "res-1",
+					ResourceType:    "aws_instance",
+					Provider:        "aws",
+					ProviderVersion: "5.0.0",
+					Operation:       "create",
+					CurrentState:    map[string]any{"status": "current-0"},
+					ProposedState:   map[string]any{"status": "next-0"},
 				},
 				ResourceOperationResult: types.ResourceOperationResult{},
 			},
@@ -131,12 +135,13 @@ func TestSQLiteListResourceOperations(t *testing.T) {
 			op: types.ResourceOperation{
 				ID: "op-1",
 				ResourceOperationInput: types.ResourceOperationInput{
-					ResourceID:    "res-1",
-					ResourceType:  "aws_instance",
-					Provider:      "aws",
-					Operation:     "update",
-					CurrentState:  map[string]any{"status": "current-1"},
-					ProposedState: map[string]any{"status": "next-1"},
+					ResourceID:      "res-1",
+					ResourceType:    "aws_instance",
+					Provider:        "aws",
+					ProviderVersion: "5.0.0",
+					Operation:       "update",
+					CurrentState:    map[string]any{"status": "current-1"},
+					ProposedState:   map[string]any{"status": "next-1"},
 				},
 				ResourceOperationResult: types.ResourceOperationResult{},
 			},
@@ -146,12 +151,13 @@ func TestSQLiteListResourceOperations(t *testing.T) {
 			op: types.ResourceOperation{
 				ID: "op-2",
 				ResourceOperationInput: types.ResourceOperationInput{
-					ResourceID:    "res-2",
-					ResourceType:  "aws_s3_bucket",
-					Provider:      "aws",
-					Operation:     "delete",
-					CurrentState:  map[string]any{"status": "current-2"},
-					ProposedState: map[string]any{"status": "next-2"},
+					ResourceID:      "res-2",
+					ResourceType:    "aws_s3_bucket",
+					Provider:        "aws",
+					ProviderVersion: "5.0.0",
+					Operation:       "delete",
+					CurrentState:    map[string]any{"status": "current-2"},
+					ProposedState:   map[string]any{"status": "next-2"},
 				},
 				ResourceOperationResult: types.ResourceOperationResult{Failed: &failedMsg},
 			},
@@ -161,12 +167,13 @@ func TestSQLiteListResourceOperations(t *testing.T) {
 			op: types.ResourceOperation{
 				ID: "op-3",
 				ResourceOperationInput: types.ResourceOperationInput{
-					ResourceID:    "res-3",
-					ResourceType:  "gcp_instance",
-					Provider:      "gcp",
-					Operation:     "create",
-					CurrentState:  map[string]any{"status": "current-3"},
-					ProposedState: map[string]any{"status": "next-3"},
+					ResourceID:      "res-3",
+					ResourceType:    "gcp_instance",
+					Provider:        "gcp",
+					ProviderVersion: "4.0.0",
+					Operation:       "create",
+					CurrentState:    map[string]any{"status": "current-3"},
+					ProposedState:   map[string]any{"status": "next-3"},
 				},
 				ResourceOperationResult: types.ResourceOperationResult{},
 			},

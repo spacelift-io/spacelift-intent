@@ -8,8 +8,9 @@ import (
 	"maps"
 
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerschema"
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 type SchemaConverter struct{}
