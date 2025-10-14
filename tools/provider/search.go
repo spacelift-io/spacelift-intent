@@ -6,6 +6,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -63,14 +64,21 @@ func SearchForProvider(ctx context.Context, registryClient types.RegistryClient,
 	var maxPopularity float64 = -1
 
 	for i := range results {
-		if results[i].Popularity > maxPopularity {
+		// Exact match - return immediately
+		if results[i].Addr == providerName {
+			bestProvider = &results[i]
+			break
+		}
+
+		// Track most popular provider that contains the query
+		if strings.Contains(results[i].Addr, providerName) && results[i].Popularity > maxPopularity {
 			maxPopularity = results[i].Popularity
 			bestProvider = &results[i]
 		}
 	}
 
 	if bestProvider == nil {
-		return nil, fmt.Errorf("no suitable provider found for query: %s", providerName)
+		return nil, fmt.Errorf("no provider found matching query: %s", providerName)
 	}
 
 	return &types.ProviderSearchToolResult{
