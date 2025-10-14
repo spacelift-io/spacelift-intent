@@ -38,36 +38,43 @@ func Search(registryClient types.RegistryClient) i.Tool {
 
 func search(registryClient types.RegistryClient) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args searchArgs) (*mcp.CallToolResult, error) {
-		// Search providers using registry client
-		results, err := registryClient.SearchProviders(ctx, args.Query)
+		result, err := SearchForProvider(ctx, registryClient, args.Query)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to search providers: %v", err)), nil
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		// Find the most popular provider
-		var bestProvider map[string]any
-		var maxPopularity float64 = -1
-
-		for _, result := range results {
-			if result.Popularity > maxPopularity {
-				maxPopularity = result.Popularity
-				bestProvider = map[string]any{
-					"name":        result.Addr,
-					"title":       result.Title,
-					"description": result.Description,
-					"version":     result.Version,
-					"popularity":  result.Popularity,
-				}
-			}
-		}
-
-		if bestProvider == nil {
-			return mcp.NewToolResultError("No providers found for query"), nil
-		}
-
-		return i.RespondJSON(map[string]any{
-			"query":    args.Query,
-			"provider": bestProvider,
-		})
+		return i.RespondJSON(result)
 	})
+}
+
+// SearchForProvider searches for a provider and returns the best match
+func SearchForProvider(ctx context.Context, registryClient types.RegistryClient, providerName string) (*types.ProviderSearchToolResult, error) {
+	results, err := registryClient.SearchProviders(ctx, providerName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search providers: %w", err)
+	}
+
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no providers found for query: %s", providerName)
+	}
+
+	// Find the most popular provider
+	var bestProvider *types.ProviderSearchResult
+	var maxPopularity float64 = -1
+
+	for i := range results {
+		if results[i].Popularity > maxPopularity {
+			maxPopularity = results[i].Popularity
+			bestProvider = &results[i]
+		}
+	}
+
+	if bestProvider == nil {
+		return nil, fmt.Errorf("no suitable provider found for query: %s", providerName)
+	}
+
+	return &types.ProviderSearchToolResult{
+		Query:    providerName,
+		Provider: *bestProvider,
+	}, nil
 }

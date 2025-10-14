@@ -46,8 +46,8 @@ func (m *AdaptiveManager) GetProviderVersion(ctx context.Context, providerName s
 	return m.adapter.GetProviderVersion(ctx, providerName)
 }
 
-func (m *AdaptiveManager) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
-	return m.adapter.GetProviderVersions(ctx, providerName)
+func (m *AdaptiveManager) GetProviderVersions(ctx context.Context, provider types.ProviderConfig) ([]types.ProviderVersionInfo, error) {
+	return m.adapter.GetProviderVersions(ctx, provider)
 }
 
 func (m *AdaptiveManager) ListResources(ctx context.Context, provider *types.ProviderConfig) ([]string, error) {

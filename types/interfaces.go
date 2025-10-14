@@ -27,7 +27,7 @@ type ProviderManager interface {
 
 	// Configuration
 	GetProviderVersion(ctx context.Context, providerName string) (string, error)
-	GetProviderVersions(ctx context.Context, providerName string) ([]ProviderVersionInfo, error)
+	GetProviderVersions(ctx context.Context, provider ProviderConfig) ([]ProviderVersionInfo, error)
 	DescribeProvider(ctx context.Context, providerConfig *ProviderConfig) (*ProviderSchema, *string, error)
 	DescribeResource(ctx context.Context, provider *ProviderConfig, resourceType string) (*TypeDescription, error)
 	DescribeDataSource(ctx context.Context, provider *ProviderConfig, dataSourceType string) (*TypeDescription, error)
@@ -40,8 +40,8 @@ type ProviderManager interface {
 // RegistryClient interface defines operations for interacting with provider registry
 type RegistryClient interface {
 	Download(ctx context.Context, url string) (io.ReadCloser, error)
-	GetProviderDownload(ctx context.Context, providerName string, version string) (*DownloadInfo, error)
-	GetProviderVersions(ctx context.Context, providerName string) ([]ProviderVersionInfo, error)
+	GetProviderDownload(ctx context.Context, provider ProviderConfig) (*DownloadInfo, error)
+	GetProviderVersions(ctx context.Context, provider ProviderConfig) ([]ProviderVersionInfo, error)
 	SearchProviders(ctx context.Context, query string) ([]ProviderSearchResult, error)
 	FindProvider(ctx context.Context, query string) (*ProviderSearchResult, error)
 }

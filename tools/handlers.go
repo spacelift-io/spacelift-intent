@@ -47,7 +47,7 @@ func (th *ToolHandlers) Tools() []internal.Tool {
 	tools = append(tools, resourceLifecycle.Create(th.storage, th.providerManager))
 
 	// Register update resource tool
-	tools = append(tools, resourceLifecycle.Update(th.storage, th.providerManager))
+	tools = append(tools, resourceLifecycle.Update(th.storage, th.providerManager, th.registryClient))
 
 	// Register operations resource tool
 	tools = append(tools, resourceLifecycle.Operations(th.storage))
@@ -65,10 +65,10 @@ func (th *ToolHandlers) Tools() []internal.Tool {
 	tools = append(tools, state.List(th.storage))
 
 	// Register delete resource tool
-	tools = append(tools, resourceLifecycle.Delete(th.storage, th.providerManager))
+	tools = append(tools, resourceLifecycle.Delete(th.storage, th.providerManager, th.registryClient))
 
 	// Register refresh resource tool
-	tools = append(tools, resourceLifecycle.Refresh(th.storage, th.providerManager))
+	tools = append(tools, resourceLifecycle.Refresh(th.storage, th.providerManager, th.registryClient))
 
 	// Register import resource tool
 	tools = append(tools, resourceLifecycle.Import(th.storage, th.providerManager))

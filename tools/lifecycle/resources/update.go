@@ -10,6 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
+	"github.com/spacelift-io/spacelift-intent/tools/provider"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
@@ -18,7 +19,7 @@ type updateArgs struct {
 	Config     map[string]any `json:"config"`
 }
 
-func Update(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+func Update(storage types.Storage, providerManager types.ProviderManager, registryClient types.RegistryClient) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-update"),
 		Description: "Update an existing OpenTofu resource by ID with a new configuration. " +
@@ -47,10 +48,10 @@ func Update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			},
 			Required: []string{"resource_id", "config"},
 		},
-	}, Handler: update(storage, providerManager)}
+	}, Handler: update(storage, providerManager, registryClient)}
 }
 
-func update(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
+func update(storage types.Storage, providerManager types.ProviderManager, registryClient types.RegistryClient) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
@@ -60,6 +61,15 @@ func update(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		if record == nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
+		}
+
+		// If provider version is missing, search for it
+		if record.ProviderVersion == "" {
+			providerResult, err := provider.SearchForProvider(ctx, registryClient, record.Provider)
+			if err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to retrieve provider version: %v", err)), nil
+			}
+			record.ProviderVersion = providerResult.Provider.Version
 		}
 
 		// Parse the stored state

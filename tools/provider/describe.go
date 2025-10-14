@@ -52,7 +52,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
-		versions, err := providerManager.GetProviderVersions(ctx, args.Provider)
+		versions, err := providerManager.GetProviderVersions(ctx, types.ProviderConfig{Name: args.Provider})
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get provider versions: %v", err)), nil
 		}

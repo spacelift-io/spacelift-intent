@@ -10,6 +10,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
+	"github.com/spacelift-io/spacelift-intent/tools/provider"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
@@ -17,7 +18,7 @@ type deleteArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool {
+func Delete(storage types.Storage, providerManager types.ProviderManager, registryClient types.RegistryClient) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-delete"),
 		Description: "Delete an existing resource by its ID and remove it from the state. " +
@@ -39,10 +40,10 @@ func Delete(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			},
 			Required: []string{"resource_id"},
 		},
-	}, Handler: deleteResource(storage, providerManager)}
+	}, Handler: deleteResource(storage, providerManager, registryClient)}
 }
 
-func deleteResource(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
+func deleteResource(storage types.Storage, providerManager types.ProviderManager, registryClient types.RegistryClient) i.ToolHandler {
 	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args deleteArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
@@ -52,6 +53,15 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 
 		if record == nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
+		}
+
+		// If provider version is missing, search for it
+		if record.ProviderVersion == "" {
+			providerResult, err := provider.SearchForProvider(ctx, registryClient, record.Provider)
+			if err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to retrieve provider version: %v", err)), nil
+			}
+			record.ProviderVersion = providerResult.Provider.Version
 		}
 
 		input := types.ResourceOperationInput{
