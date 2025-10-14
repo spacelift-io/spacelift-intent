@@ -472,7 +472,7 @@ func TestSchemaConverter_Integration_AllNestingModes(t *testing.T) {
 
 // connectToProvider is a helper function to connect to a provider for testing
 // It downloads the provider and starts it using the GRPC plugin interface
-func connectToProvider(ctx context.Context, provider types.ProviderConfig) (tofuprovider.GRPCPluginProvider, error) { //nolint:unparam
+func connectToProvider(ctx context.Context, provider types.ProviderConfig) (tofuprovider.GRPCPluginProvider, error) {
 	// Create temporary directory for provider binaries
 	tmpDir, err := os.MkdirTemp("", "provider-test-*")
 	if err != nil {
