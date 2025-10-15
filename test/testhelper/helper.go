@@ -22,6 +22,7 @@ import (
 	"github.com/spacelift-io/spacelift-intent/registry"
 	"github.com/spacelift-io/spacelift-intent/storage"
 	"github.com/spacelift-io/spacelift-intent/tools"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 // TestHelper encapsulates test setup and utilities
@@ -33,6 +34,7 @@ type TestHelper struct {
 	dbDir   string
 	server  *mcptest.Server
 	Client  *client.Client
+	Storage types.Storage
 }
 
 // NewTestHelper creates a new test helper with server setup
@@ -91,6 +93,7 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 		dbDir:   dbDir,
 		server:  testServer,
 		Client:  testServer.Client(),
+		Storage: store,
 	}
 }
 
@@ -153,6 +156,7 @@ func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs 
 		dbDir:   dbDir,
 		server:  testServer,
 		Client:  testServer.Client(),
+		Storage: stor,
 	}
 }
 

@@ -124,9 +124,9 @@ func (c *openTofuClient) FindProvider(ctx context.Context, query string) (*types
 	return bestProvider, nil
 }
 
-func (c *openTofuClient) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
+func (c *openTofuClient) GetProviderVersions(ctx context.Context, provider types.ProviderConfig) ([]types.ProviderVersionInfo, error) {
 	// Parse provider name
-	namespace, providerType, err := parseProviderName(providerName)
+	namespace, providerType, err := provider.NamespacedName()
 	if err != nil {
 		return nil, err
 	}
@@ -141,27 +141,18 @@ func (c *openTofuClient) GetProviderVersions(ctx context.Context, providerName s
 }
 
 // GetProviderDownload gets download information for a provider
-func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName string, version string) (*types.DownloadInfo, error) {
-	// Parse provider name
-	namespace, providerType, err := parseProviderName(providerName)
+func (c *openTofuClient) GetProviderDownload(ctx context.Context, provider types.ProviderConfig) (*types.DownloadInfo, error) {
+	// Parse and validate provider config
+	namespace, name, version, err := provider.Parse()
 	if err != nil {
 		return nil, err
 	}
 
-	// Get available versions
-	versions, err := c.getProviderVersions(ctx, namespace, providerType)
-	if err != nil {
-		return nil, err
-	}
+	// Trim v from the version since download API requires a regular semver
+	version = strings.TrimPrefix(version, "v")
 
-	// Find compatible version
-	selectedVersion, err := selectCompatibleVersion(versions, version)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get download URL
-	downloadURL := fmt.Sprintf(c.downloadURLTemplate, namespace, providerType, selectedVersion, runtime.GOOS, runtime.GOARCH)
+	// Get download URL for the exact version provided
+	downloadURL := fmt.Sprintf(c.downloadURLTemplate, namespace, name, version, runtime.GOOS, runtime.GOARCH)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", downloadURL, nil)
 	if err != nil {
@@ -171,12 +162,12 @@ func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName s
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get download info: %w", err)
+		return nil, fmt.Errorf("failed to get download info for provider %s/%s@%s: %w", namespace, name, version, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("download not available for platform %s/%s", runtime.GOOS, runtime.GOARCH)
+		return nil, fmt.Errorf("download not available for provider %s/%s@%s for platform %s/%s", namespace, name, version, runtime.GOOS, runtime.GOARCH)
 	}
 
 	var download downloadResponse
@@ -187,7 +178,7 @@ func (c *openTofuClient) GetProviderDownload(ctx context.Context, providerName s
 	return &types.DownloadInfo{
 		DownloadURL: download.DownloadURL,
 		Shasum:      download.Shasum,
-		Version:     selectedVersion,
+		Version:     version,
 	}, nil
 }
 
@@ -213,8 +204,8 @@ func (c *openTofuClient) Download(ctx context.Context, url string) (io.ReadClose
 }
 
 // getProviderVersions gets available versions for a provider
-func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, providerType string) ([]types.ProviderVersionInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(c.versionsURLTemplate, namespace, providerType), nil)
+func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, name string) ([]types.ProviderVersionInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(c.versionsURLTemplate, namespace, name), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create versions request: %w", err)
 	}
@@ -240,29 +231,6 @@ func (c *openTofuClient) getProviderVersions(ctx context.Context, namespace, pro
 	}
 
 	return versions.Versions, nil
-}
-
-func selectCompatibleVersion(versions []types.ProviderVersionInfo, version string) (string, error) {
-	for _, v := range versions {
-		if version == v.Version {
-			return v.Version, nil
-		}
-	}
-	return "", fmt.Errorf("version %s not found in available versions", version)
-}
-
-// parseProviderName parses a provider name into namespace and type
-func parseProviderName(providerName string) (namespace, providerType string, err error) {
-	if len(providerName) == 0 {
-		return "", "", fmt.Errorf("empty provider name")
-	}
-
-	parts := strings.Split(providerName, "/")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("invalid provider name format, expected 'namespace/type'")
-	}
-
-	return parts[0], parts[1], nil
 }
 
 // versionsResponse represents the registry response for available versions

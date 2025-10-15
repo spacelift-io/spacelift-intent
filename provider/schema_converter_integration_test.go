@@ -36,7 +36,10 @@ func TestSchemaConverter_Integration_AWS_Instance(t *testing.T) {
 	converter := &SchemaConverter{}
 
 	// Connect to AWS provider
-	provider, err := connectToProvider(ctx, "hashicorp/aws", "6.16.0")
+	provider, err := connectToProvider(ctx, types.ProviderConfig{
+		Name:    "hashicorp/aws",
+		Version: "6.16.0",
+	})
 	if err != nil {
 		t.Skipf("Could not connect to AWS provider: %v (this is expected in CI)", err)
 		return
@@ -135,7 +138,10 @@ func TestSchemaConverter_Integration_AWS_VPC(t *testing.T) {
 	ctx := context.Background()
 	converter := &SchemaConverter{}
 
-	provider, err := connectToProvider(ctx, "hashicorp/aws", "6.16.0")
+	provider, err := connectToProvider(ctx, types.ProviderConfig{
+		Name:    "hashicorp/aws",
+		Version: "6.16.0",
+	})
 	if err != nil {
 		t.Skipf("Could not connect to AWS provider: %v", err)
 		return
@@ -173,7 +179,10 @@ func TestSchemaConverter_Integration_AWS_SecurityGroup(t *testing.T) {
 	ctx := context.Background()
 	converter := &SchemaConverter{}
 
-	provider, err := connectToProvider(ctx, "hashicorp/aws", "6.16.0")
+	provider, err := connectToProvider(ctx, types.ProviderConfig{
+		Name:    "hashicorp/aws",
+		Version: "6.16.0",
+	})
 	if err != nil {
 		t.Skipf("Could not connect to AWS provider: %v", err)
 		return
@@ -253,7 +262,10 @@ func TestSchemaConverter_Integration_AWS_CloudFrontDistribution(t *testing.T) {
 	ctx := context.Background()
 	converter := &SchemaConverter{}
 
-	provider, err := connectToProvider(ctx, "hashicorp/aws", "6.16.0")
+	provider, err := connectToProvider(ctx, types.ProviderConfig{
+		Name:    "hashicorp/aws",
+		Version: "6.16.0",
+	})
 	if err != nil {
 		t.Skipf("Could not connect to AWS provider: %v", err)
 		return
@@ -392,7 +404,10 @@ func TestSchemaConverter_Integration_AllNestingModes(t *testing.T) {
 	ctx := context.Background()
 	converter := &SchemaConverter{}
 
-	provider, err := connectToProvider(ctx, "hashicorp/aws", "6.16.0")
+	provider, err := connectToProvider(ctx, types.ProviderConfig{
+		Name:    "hashicorp/aws",
+		Version: "6.16.0",
+	})
 	if err != nil {
 		t.Skipf("Could not connect to AWS provider: %v", err)
 		return
@@ -457,7 +472,7 @@ func TestSchemaConverter_Integration_AllNestingModes(t *testing.T) {
 
 // connectToProvider is a helper function to connect to a provider for testing
 // It downloads the provider and starts it using the GRPC plugin interface
-func connectToProvider(ctx context.Context, providerName, version string) (tofuprovider.GRPCPluginProvider, error) { //nolint:unparam
+func connectToProvider(ctx context.Context, provider types.ProviderConfig) (tofuprovider.GRPCPluginProvider, error) {
 	// Create temporary directory for provider binaries
 	tmpDir, err := os.MkdirTemp("", "provider-test-*")
 	if err != nil {
@@ -468,33 +483,33 @@ func connectToProvider(ctx context.Context, providerName, version string) (tofup
 	registryClient := registry.NewOpenTofuClient()
 
 	// Get provider download info
-	downloadInfo, err := registryClient.GetProviderDownload(ctx, providerName, version)
+	downloadInfo, err := registryClient.GetProviderDownload(ctx, provider)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return nil, fmt.Errorf("failed to get provider download info: %w", err)
 	}
 
 	// Download and extract provider binary
-	binary, err := downloadAndExtractProvider(ctx, registryClient, tmpDir, providerName, version, downloadInfo.DownloadURL)
+	binary, err := downloadAndExtractProvider(ctx, registryClient, provider, tmpDir, downloadInfo.DownloadURL)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return nil, fmt.Errorf("failed to download provider: %w", err)
 	}
 
 	// Start the provider
-	provider, err := tofuprovider.StartGRPCPlugin(ctx, binary)
+	grpcProvider, err := tofuprovider.StartGRPCPlugin(ctx, binary)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		return nil, fmt.Errorf("failed to start provider: %w", err)
 	}
 
-	return provider, nil
+	return grpcProvider, nil
 }
 
 // downloadAndExtractProvider downloads and extracts a provider binary
-func downloadAndExtractProvider(ctx context.Context, registryClient types.RegistryClient, tmpDir, providerName, version, downloadURL string) (string, error) {
+func downloadAndExtractProvider(ctx context.Context, registryClient types.RegistryClient, provider types.ProviderConfig, tmpDir, downloadURL string) (string, error) {
 	// Create provider directory
-	providerDir := filepath.Join(tmpDir, strings.ReplaceAll(providerName, "/", "_")+"_"+version)
+	providerDir := filepath.Join(tmpDir, strings.ReplaceAll(provider.Name, "/", "_")+"_"+provider.Version)
 	if err := os.MkdirAll(providerDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create provider directory: %w", err)
 	}

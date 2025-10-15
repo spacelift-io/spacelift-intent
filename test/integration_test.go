@@ -479,3 +479,93 @@ func TestDependencyManagement(t *testing.T) {
 		assert.Contains(t, content, "removed", "Should show removal status")
 	}
 }
+
+// TestProviderVersionFallback tests that update/delete/refresh retrieve provider version
+// from registry when it's missing from state
+func TestProviderVersionFallback(t *testing.T) {
+	th := testhelper.NewTestHelper(t)
+	defer th.Cleanup()
+
+	// Search for provider to get version
+	result, err := th.CallTool("provider-search", map[string]any{
+		"query": "random",
+	})
+	th.AssertToolSuccess(result, err, "provider-search")
+
+	// Create a resource with provider version
+	resourceID := testhelper.GenerateUniqueResourceID("test-fallback")
+	result, err = th.CallTool("lifecycle-resources-create", map[string]any{
+		"resource_id":      resourceID,
+		"provider":         "hashicorp/random",
+		"provider_version": "3.6.3",
+		"resource_type":    "random_string",
+		"config": map[string]any{
+			"length": 10,
+		},
+	})
+	th.AssertToolSuccess(result, err, "lifecycle-resources-create")
+
+	// Verify resource was created with provider version
+	record, err := th.Storage.GetState(th.Ctx, resourceID)
+	require.NoError(t, err)
+	require.NotNil(t, record)
+	assert.Equal(t, "3.6.3", record.ProviderVersion, "Resource should have provider version")
+
+	// Remove provider_version from state to simulate old state
+	record.ProviderVersion = ""
+	err = th.Storage.SaveState(th.Ctx, *record)
+	require.NoError(t, err)
+
+	// Verify provider_version was removed
+	record, err = th.Storage.GetState(th.Ctx, resourceID)
+	require.NoError(t, err)
+	assert.Equal(t, "", record.ProviderVersion, "Provider version should be empty")
+
+	// Test Update retrieves provider version
+	result, err = th.CallTool("lifecycle-resources-update", map[string]any{
+		"resource_id": resourceID,
+		"config": map[string]any{
+			"length": 12,
+		},
+	})
+	th.AssertToolSuccess(result, err, "lifecycle-resources-update")
+
+	// Verify provider version was retrieved and persisted
+	record, err = th.Storage.GetState(th.Ctx, resourceID)
+	require.NoError(t, err)
+	assert.NotEqual(t, "", record.ProviderVersion, "Update should retrieve provider version from registry")
+	t.Logf("Update retrieved provider version: %s", record.ProviderVersion)
+
+	// Remove provider_version again
+	record.ProviderVersion = ""
+	err = th.Storage.SaveState(th.Ctx, *record)
+	require.NoError(t, err)
+
+	// Test Refresh retrieves provider version
+	result, err = th.CallTool("lifecycle-resources-refresh", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(result, err, "lifecycle-resources-refresh")
+
+	// Verify provider version was retrieved
+	record, err = th.Storage.GetState(th.Ctx, resourceID)
+	require.NoError(t, err)
+	assert.NotEqual(t, "", record.ProviderVersion, "Refresh should retrieve provider version from registry")
+	t.Logf("Refresh retrieved provider version: %s", record.ProviderVersion)
+
+	// Remove provider_version one more time
+	record.ProviderVersion = ""
+	err = th.Storage.SaveState(th.Ctx, *record)
+	require.NoError(t, err)
+
+	// Test Delete retrieves provider version
+	result, err = th.CallTool("lifecycle-resources-delete", map[string]any{
+		"resource_id": resourceID,
+	})
+	th.AssertToolSuccess(result, err, "lifecycle-resources-delete")
+
+	// Verify resource was deleted
+	record, err = th.Storage.GetState(th.Ctx, resourceID)
+	require.NoError(t, err)
+	assert.Nil(t, record, "Resource should be deleted")
+}

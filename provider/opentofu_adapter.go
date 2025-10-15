@@ -50,12 +50,12 @@ type OpenTofuAdapter struct {
 	binaries        map[string]string // provider key -> binary path
 }
 
-func (a *OpenTofuAdapter) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
-	return a.registry.GetProviderVersions(ctx, providerName)
+func (a *OpenTofuAdapter) GetProviderVersions(ctx context.Context, provider types.ProviderConfig) ([]types.ProviderVersionInfo, error) {
+	return a.registry.GetProviderVersions(ctx, provider)
 }
 
 func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerConfig *types.ProviderConfig) error {
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return fmt.Errorf("invalid provider config: %w", err)
 	}
@@ -169,7 +169,7 @@ func (a *OpenTofuAdapter) loadProvider(ctx context.Context, providerConfig *type
 		return nil, nil, nil, fmt.Errorf("failed to download provider %s: %w", providerConfig.Name, err)
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -248,7 +248,7 @@ func (a *OpenTofuAdapter) getSchemaWithProvider(ctx context.Context, providerCon
 // getRawSchema gets or caches the raw provider schema response
 func (a *OpenTofuAdapter) getRawSchema(_ context.Context, providerConfig *types.ProviderConfig) (providerops.GetProviderSchemaResponse, error) {
 	// Check cache
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -262,7 +262,7 @@ func (a *OpenTofuAdapter) getRawSchema(_ context.Context, providerConfig *types.
 
 // getRawSchema gets or caches the raw provider schema response
 func (a *OpenTofuAdapter) getRawSchemaWithProvider(ctx context.Context, providerConfig *types.ProviderConfig, provider tofuprovider.GRPCPluginProvider) (providerops.GetProviderSchemaResponse, error) {
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -338,7 +338,7 @@ func (a *OpenTofuAdapter) PlanResource(ctx context.Context, providerConfig *type
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -419,7 +419,7 @@ func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerConfig *ty
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -508,7 +508,7 @@ func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerConfig *ty
 		return err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -587,7 +587,7 @@ func (a *OpenTofuAdapter) ReadDataSource(ctx context.Context, providerConfig *ty
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -647,7 +647,7 @@ func (a *OpenTofuAdapter) ImportResource(ctx context.Context, providerConfig *ty
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -740,7 +740,7 @@ func (a *OpenTofuAdapter) RefreshResource(ctx context.Context, providerConfig *t
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -806,7 +806,7 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *ty
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -899,7 +899,7 @@ func (a *OpenTofuAdapter) ListResources(ctx context.Context, providerConfig *typ
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -924,7 +924,7 @@ func (a *OpenTofuAdapter) DescribeResource(ctx context.Context, providerConfig *
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -949,7 +949,7 @@ func (a *OpenTofuAdapter) DescribeDataSource(ctx context.Context, providerConfig
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -974,7 +974,7 @@ func (a *OpenTofuAdapter) ListDataSources(ctx context.Context, providerConfig *t
 		return nil, err
 	}
 
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
@@ -1031,7 +1031,7 @@ func (a *OpenTofuAdapter) findProviderBinary(dir string) (string, error) {
 
 func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerConfig *types.ProviderConfig) (string, error) {
 	// Use the existing registry logic to download the provider
-	downloadInfo, err := a.registry.GetProviderDownload(ctx, providerConfig.Name, providerConfig.Version)
+	downloadInfo, err := a.registry.GetProviderDownload(ctx, *providerConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to get provider download info: %w", err)
 	}
@@ -1048,7 +1048,7 @@ func (a *OpenTofuAdapter) downloadProvider(ctx context.Context, providerConfig *
 // downloadAndExtractProvider downloads and extracts a provider binary
 func (a *OpenTofuAdapter) downloadAndExtractProvider(ctx context.Context, providerConfig *types.ProviderConfig, downloadURL string) (string, error) {
 	// Create provider directory using name@version as key
-	versionedName, err := providerConfig.VersionedName()
+	versionedName, err := providerConfig.FullName()
 	if err != nil {
 		return "", fmt.Errorf("failed to get versioned provider name: %w", err)
 	}

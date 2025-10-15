@@ -3,7 +3,10 @@
 
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type contextKey string
 
@@ -37,6 +40,12 @@ type ProviderSearchResult struct {
 	Title       string  `json:"title"`
 	Description string  `json:"description"`
 	Popularity  float64 `json:"popularity"`
+}
+
+// ProviderSearchToolResult represents the result returned by the provider-search tool
+type ProviderSearchToolResult struct {
+	Query    string               `json:"query"`
+	Provider ProviderSearchResult `json:"provider"`
 }
 
 // StateRecord represents a stored resource state
@@ -145,9 +154,9 @@ type ProviderConfig struct {
 	Config  map[string]any `json:"config,omitempty"`
 }
 
-// VersionedName returns a unique cache key for this provider configuration
-// Both Name and Version must be non-empty strings
-func (p *ProviderConfig) VersionedName() (string, error) {
+// FullName returns a unique cache key for this provider configuration
+// Both namespaced Name and Version must be non-empty strings
+func (p *ProviderConfig) FullName() (string, error) {
 	if p.Name == "" {
 		return "", fmt.Errorf("empty provider name")
 	}
@@ -157,6 +166,37 @@ func (p *ProviderConfig) VersionedName() (string, error) {
 	}
 
 	return p.Name + "@" + p.Version, nil
+}
+
+// NamespacedName parses and validates that the provider name is properly namespaced
+// Expected format: "namespace/type" (e.g., "hashicorp/aws")
+// Returns namespace and type, or an error if the format is invalid
+func (p *ProviderConfig) NamespacedName() (string, string, error) {
+	if p.Name == "" {
+		return "", "", fmt.Errorf("empty provider name")
+	}
+
+	parts := strings.Split(p.Name, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("invalid provider name format '%s', expected 'namespace/type'", p.Name)
+	}
+
+	return parts[0], parts[1], nil
+}
+
+// Parse parses and validates the complete provider configuration
+// Returns namespace, type, and version, or an error if any component is invalid
+func (p *ProviderConfig) Parse() (string, string, string, error) {
+	namespace, name, err := p.NamespacedName()
+	if err != nil {
+		return "", "", "", err
+	}
+
+	if p.Version == "" {
+		return "", "", "", fmt.Errorf("empty provider version")
+	}
+
+	return namespace, name, p.Version, nil
 }
 
 // ProviderVersionInfo represents provider version information from registry

@@ -104,7 +104,7 @@ func (pm *DefaultManager) getSchema(ctx context.Context, provider *types.Provide
 
 // getProviderInfo returns internal provider info (private helper)
 func (pm *DefaultManager) getProviderInfo(provider *types.ProviderConfig) (*providerInfo, error) {
-	cacheKey, err := provider.VersionedName()
+	cacheKey, err := provider.FullName()
 	if err != nil {
 		return nil, err
 	}
@@ -153,14 +153,14 @@ func (pm *DefaultManager) getProviderClient(ctx context.Context, provider *types
 	return providerInfo.provider, providerInfo.schema, nil
 }
 
-func (pm *DefaultManager) GetProviderVersions(ctx context.Context, providerName string) ([]types.ProviderVersionInfo, error) {
-	return pm.registry.GetProviderVersions(ctx, providerName)
+func (pm *DefaultManager) GetProviderVersions(ctx context.Context, provider types.ProviderConfig) ([]types.ProviderVersionInfo, error) {
+	return pm.registry.GetProviderVersions(ctx, provider)
 }
 
 // LoadProvider downloads and initializes a provider if not already loaded
 func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.ProviderConfig) error {
 	// Check if provider is already loaded
-	cacheKey, err := provider.VersionedName()
+	cacheKey, err := provider.FullName()
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.Prov
 	}
 
 	// Get download info from registry
-	downloadInfo, err := pm.registry.GetProviderDownload(ctx, provider.Name, provider.Version)
+	downloadInfo, err := pm.registry.GetProviderDownload(ctx, *provider)
 	if err != nil {
 		return fmt.Errorf("failed to get provider download info: %w", err)
 	}
@@ -194,7 +194,7 @@ func (pm *DefaultManager) LoadProvider(ctx context.Context, provider *types.Prov
 // downloadAndExtractProvider downloads and extracts a provider binary
 func (pm *DefaultManager) downloadAndExtractProvider(ctx context.Context, providerConfig *types.ProviderConfig, downloadURL string) (string, error) {
 	// Create provider directory using name@version as key
-	versionedName, err := providerConfig.VersionedName()
+	versionedName, err := providerConfig.FullName()
 	if err != nil {
 		return "", err
 	}
@@ -339,7 +339,7 @@ func (pm *DefaultManager) initializeProvider(ctx context.Context, providerConfig
 
 	// Set additional info and store
 	providerInfo.version = version
-	cacheKey, err := providerConfig.VersionedName()
+	cacheKey, err := providerConfig.FullName()
 	if err != nil {
 		return fmt.Errorf("failed to get versioned provider name: %w", err)
 	}
