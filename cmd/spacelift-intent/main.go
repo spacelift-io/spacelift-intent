@@ -41,8 +41,9 @@ func main() {
 
 			// Create standalone server
 			config := &Config{
-				TmpDir: tmpDir,
-				DBDir:  dbDir,
+				TmpDir:  tmpDir,
+				DBDir:   dbDir,
+				Storage: stateStorage,
 			}
 
 			server, err := newServer(config)
