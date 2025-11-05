@@ -237,27 +237,27 @@ func TestMergeMaps_ComplexScenarios(t *testing.T) {
 		{
 			name: "EC2 security group update scenario",
 			currentState: map[string]any{
-				"ami":                 "ami-12345",
-				"instance_type":       "t3.micro",
-				"subnet_id":           "subnet-abc",
+				"ami":                    "ami-12345",
+				"instance_type":          "t3.micro",
+				"subnet_id":              "subnet-abc",
 				"vpc_security_group_ids": []any{"sg-111"},
 				"tags": map[string]any{
 					"Name": "web-server",
 				},
 			},
 			newConfig: map[string]any{
-				"ami":                 "ami-12345",
-				"instance_type":       "t3.micro",
-				"subnet_id":           "subnet-abc",
+				"ami":                    "ami-12345",
+				"instance_type":          "t3.micro",
+				"subnet_id":              "subnet-abc",
 				"vpc_security_group_ids": []any{"sg-111", "sg-222"},
 				"tags": map[string]any{
 					"Name": "web-server",
 				},
 			},
 			expected: map[string]any{
-				"ami":                 "ami-12345",
-				"instance_type":       "t3.micro",
-				"subnet_id":           "subnet-abc",
+				"ami":                    "ami-12345",
+				"instance_type":          "t3.micro",
+				"subnet_id":              "subnet-abc",
 				"vpc_security_group_ids": []any{"sg-111", "sg-222"},
 				"tags": map[string]any{
 					"Name": "web-server",
