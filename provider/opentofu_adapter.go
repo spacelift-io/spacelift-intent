@@ -829,8 +829,13 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *ty
 	}
 	priorState := providerschema.NewDynamicValue(currentStateCty, resourceTypeCty)
 
-	// Convert new config to cty.Value
-	configCty, err := a.converter.MapToCtyValue(newConfig, resourceTypeCty)
+	// Merge currentState with newConfig to preserve fields not present in newConfig, otherwise it would potentially crash provider.
+	// Not sure if there should be some additional magic around maps nested in slices though.
+	// Until another corner case is found, this is good enough.
+	mergedConfig := mergeMaps(currentState, newConfig)
+
+	// Convert merged config to cty.Value
+	configCty, err := a.converter.MapToCtyValue(mergedConfig, resourceTypeCty)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert config: %w", err)
 	}

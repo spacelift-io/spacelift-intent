@@ -4,6 +4,7 @@ go 1.25.1
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-plugin v1.6.3
