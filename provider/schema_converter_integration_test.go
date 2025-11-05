@@ -15,8 +15,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apparentlymart/opentofu-providers/tofuprovider"
-	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerops"
+	"github.com/opentofu/provider-client/tofuprovider"
+	"github.com/opentofu/provider-client/tofuprovider/providerops"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zclconf/go-cty/cty"

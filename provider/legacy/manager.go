@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
+	pb "github.com/opentofu/provider-client/tofuprovider/grpc/tfplugin5"
 	"github.com/vmihailenco/msgpack/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

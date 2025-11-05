@@ -8,7 +8,7 @@ package legacy
 import (
 	"fmt"
 
-	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
+	pb "github.com/opentofu/provider-client/tofuprovider/grpc/tfplugin5"
 )
 
 // STUB IMPLEMENTATION - This file is compiled by default to avoid plugin.Empty conflicts
