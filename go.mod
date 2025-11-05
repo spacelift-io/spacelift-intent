@@ -3,12 +3,12 @@ module github.com/spacelift-io/spacelift-intent
 go 1.25.1
 
 require (
-	github.com/apparentlymart/opentofu-providers v0.0.0-20250724234429-1ac1eb53eced
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-hclog v1.5.0
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/mark3labs/mcp-go v0.39.1
+	github.com/opentofu/provider-client v0.0.0-20251028170921-ac833384ca3b
 	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/zclconf/go-cty v1.17.0
@@ -65,5 +65,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/apparentlymart/opentofu-providers => github.com/spacelift-io/opentofu-providers v0.0.0-20251007124643-3afa7fd7ccd7

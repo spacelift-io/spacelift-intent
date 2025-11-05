@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerschema"
+	"github.com/opentofu/provider-client/tofuprovider/providerschema"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/spacelift-io/spacelift-intent/types"

@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	pb "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
+	pb "github.com/opentofu/provider-client/tofuprovider/grpc/tfplugin5"
 )
 
 // grpcProviderPlugin implements plugin.GRPCPlugin for the provider
