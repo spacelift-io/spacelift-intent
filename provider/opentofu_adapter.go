@@ -830,9 +830,16 @@ func (a *OpenTofuAdapter) UpdateResource(ctx context.Context, providerConfig *ty
 	priorState := providerschema.NewDynamicValue(currentStateCty, resourceTypeCty)
 
 	// Merge currentState with newConfig to preserve fields not present in newConfig, otherwise it would potentially crash provider.
-	// Not sure if there should be some additional magic around maps nested in slices though.
-	// Until another corner case is found, this is good enough.
-	mergedConfig := mergeMaps(currentState, newConfig)
+	// Merge (i.e. replace) only at top level, otherwise it would be impossible to remove items from maps, e.g. remove a tag from AWS resource.
+	// If top level object had nested items, LLM will provide them as well
+	mergedConfig := map[string]any{}
+	for k, v := range currentState {
+		mergedConfig[k] = v
+
+		if _, ok := newConfig[k]; ok {
+			mergedConfig[k] = newConfig[k]
+		}
+	}
 
 	// Convert merged config to cty.Value
 	configCty, err := a.converter.MapToCtyValue(mergedConfig, resourceTypeCty)
