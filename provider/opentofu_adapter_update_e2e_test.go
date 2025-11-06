@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/spacelift-io/spacelift-intent/test/testhelper"
-	"github.com/spacelift-io/spacelift-intent/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacelift-io/spacelift-intent/test/testhelper"
+	"github.com/spacelift-io/spacelift-intent/types"
 )
 
 // TestUpdateResource_TopLevelConfigMerge_E2E verifies that UpdateResource correctly
