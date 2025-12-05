@@ -221,6 +221,7 @@ func (a *OpenTofuAdapter) getSchemaWithProvider(ctx context.Context, providerCon
 		},
 		Resources:   make(map[string]*types.TypeDescription),
 		DataSources: make(map[string]*types.TypeDescription),
+		Version:     providerConfig.Version,
 	}
 
 	providerSchema := schemaResp.ProviderSchema()

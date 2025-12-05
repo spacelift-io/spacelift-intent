@@ -352,11 +352,12 @@ func (sc *SchemaConverter) convertSchemaToTypeDescription(providerName, typeName
 	}
 
 	return &types.TypeDescription{
-		ProviderName: providerName,
-		Type:         typeName,
-		Description:  description,
-		Properties:   properties,
-		Required:     required,
+		SchemaVersion: schema.SchemaVersion(),
+		ProviderName:  providerName,
+		Type:          typeName,
+		Description:   description,
+		Properties:    properties,
+		Required:      required,
 	}
 }
 

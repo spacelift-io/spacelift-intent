@@ -24,11 +24,12 @@ type DownloadInfo struct {
 
 // TypeDescription contains provider type information
 type TypeDescription struct {
-	ProviderName string         `json:"provider"`
-	Type         string         `json:"type"`
-	Description  string         `json:"description"`
-	Properties   map[string]any `json:"properties"`
-	Required     []string       `json:"required"`
+	SchemaVersion int64          `json:"schema_version"`
+	ProviderName  string         `json:"provider"`
+	Type          string         `json:"type"`
+	Description   string         `json:"description"`
+	Properties    map[string]any `json:"properties"`
+	Required      []string       `json:"required"`
 }
 
 // ProviderSearchResult represents a provider search result
