@@ -1,8 +1,6 @@
 // Copyright 2025 Spacelift, Inc. and contributors
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build !legacy_plugin
-
 package provider
 
 import (
