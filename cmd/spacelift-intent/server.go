@@ -48,7 +48,7 @@ func newServer(config *Config) (*Server, error) {
 
 	// Create services
 	registryClient := registry.NewOpenTofuClient()
-	providerManager := provider.NewAdaptiveManager(config.TmpDir, registryClient)
+	providerManager := provider.NewOpenTofuAdapter(config.TmpDir, registryClient)
 	toolHandlers := tools.New(registryClient, providerManager, config.Storage)
 
 	// Create server
