@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -18,13 +18,16 @@ type searchArgs struct {
 	Query string `json:"query"`
 }
 
+// ptrTo returns a pointer to the given value.
+func ptrTo[T any](v T) *T { return &v }
+
 // Search creates a tool for searching OpenTofu providers in the registry.
 func Search(registryClient types.RegistryClient) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("provider-search"),
 		Description: "Search for an available provider in the OpenTofu registry. Use this tool to discover providers before resource creation - essential for finding the correct provider namespace (e.g., 'hashicorp/aws', 'hashicorp/random') needed for infrastructure operations. Returns the most popular matching provider with its full address, version, and metadata. Present results with clear provider identification and next steps for schema analysis.",
-		Annotations: i.ToolAnnotations("Search for a provider", i.Readonly|i.Idempotent|i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Search for a provider", i.Readonly|i.Idempotent|i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"query": map[string]any{
@@ -38,10 +41,10 @@ func Search(registryClient types.RegistryClient) i.Tool {
 }
 
 func search(registryClient types.RegistryClient) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args searchArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args searchArgs) (*mcp.CallToolResult, error) {
 		result, err := SearchForProvider(ctx, registryClient, args.Query)
 		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		return i.RespondJSON(result)

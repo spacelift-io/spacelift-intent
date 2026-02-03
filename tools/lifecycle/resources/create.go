@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -30,6 +30,9 @@ func (args createArgs) GetProvider() *types.ProviderConfig {
 	}
 }
 
+// ptrTo returns a pointer to the given value.
+func ptrTo[T any](v T) *T { return &v }
+
 func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-create"),
@@ -48,8 +51,8 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"Analysis format with CREATE section, risk assessment, and next steps. For provider " +
 			"argument mismatches, use Provider Argument Count Mismatch format with auto-resolution " +
 			"strategy. \n\nHint: may want to add a dependency if applicable.",
-		Annotations: i.ToolAnnotations("Create a new managed resource", i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Create a new managed resource", i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -79,14 +82,14 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 }
 
 func create(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args createArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args createArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
 		existingState, err := storage.GetState(ctx, args.ResourceID)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to check existing state: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to check existing state: %v", err)), nil
 		}
 		if existingState != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' already exists", args.ResourceID)), nil
+			return i.NewToolResultError(fmt.Sprintf("Resource with ID '%s' already exists", args.ResourceID)), nil
 		}
 
 		input := types.ResourceOperationInput{
@@ -113,12 +116,12 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		state, err := providerManager.CreateResource(ctx, args.GetProvider(), args.ResourceType, args.Config)
 		if err != nil {
 			err = fmt.Errorf("failed to create resource: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case
 		if len(state) == 0 {
-			return mcp.NewToolResultText("{}"), nil
+			return i.NewToolResultText("{}"), nil
 		}
 
 		// Persist state to database
@@ -136,7 +139,7 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		if err = storage.SaveState(ctx, record); err != nil {
 			err = fmt.Errorf("failed to save state: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		operation.Failed = nil

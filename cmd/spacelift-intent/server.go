@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/spacelift-io/spacelift-intent/instructions"
 	"github.com/spacelift-io/spacelift-intent/provider"
@@ -21,7 +20,7 @@ import (
 // Server implements the StandaloneServer interface
 // This wraps the existing monolithic functionality
 type Server struct {
-	mcp             *server.MCPServer
+	mcp             *mcp.Server
 	toolHandlers    *tools.ToolHandlers
 	storage         types.Storage
 	providerManager types.ProviderManager
@@ -59,16 +58,15 @@ func newServer(config *Config) (*Server, error) {
 		config:          config,
 	}
 
-	s.mcp = server.NewMCPServer(
-		"spacelift-intent",
-		"1.0.0",
-		server.WithToolCapabilities(false),
-		server.WithLogging(),
-		server.WithInstructions(instructions.Get()),
-	)
+	s.mcp = mcp.NewServer(&mcp.Implementation{
+		Name:    "spacelift-intent",
+		Version: "1.0.0",
+	}, &mcp.ServerOptions{
+		Instructions: instructions.Get(),
+	})
 
 	for _, tool := range toolHandlers.Tools() {
-		s.mcp.AddTool(tool.Tool, tool.Handler)
+		s.mcp.AddTool(&tool.Tool, tool.Handler)
 	}
 
 	return s, nil
@@ -77,23 +75,9 @@ func newServer(config *Config) (*Server, error) {
 // start starts the server with the given configuration
 func (s *Server) start(ctx context.Context) error {
 	log.Printf("Starting standalone server in stdio mode")
-
 	log.Printf("Starting MCP stdio server")
 
-	// Start server in a goroutine so we can handle context cancellation
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- server.ServeStdio(s.mcp)
-	}()
-
-	// Wait for context cancellation or server error
-	select {
-	case <-ctx.Done():
-		log.Println("Context cancelled, shutting down stdio server")
-		return ctx.Err()
-	case err := <-errChan:
-		return err
-	}
+	return s.mcp.Run(ctx, &mcp.StdioTransport{})
 }
 
 // stop gracefully shuts down the server
@@ -114,6 +98,6 @@ func (s *Server) stop(ctx context.Context) {
 }
 
 // AddTool registers an MCP tool handler
-func (s *Server) AddTool(tool mcp.Tool, handler func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)) {
+func (s *Server) AddTool(tool *mcp.Tool, handler mcp.ToolHandler) {
 	s.mcp.AddTool(tool, handler)
 }

@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -29,6 +29,9 @@ func (args readArgs) GetProvider() *types.ProviderConfig {
 	}
 }
 
+// ptrTo returns a pointer to the given value.
+func ptrTo[T any](v T) *T { return &v }
+
 func Read(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-datasources-read"),
@@ -42,8 +45,8 @@ func Read(providerManager types.ProviderManager) i.Tool {
 			"\n\nArgument Handling: Set unknown/optional arguments to appropriate defaults: " +
 			"strings to null or '', booleans to null or false, numbers to null or 0, arrays " +
 			"to null or [], objects to null or {}. Ensure ALL required arguments are provided.",
-		Annotations: i.ToolAnnotations("Read data from a data source", i.Readonly|i.Idempotent|i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Read data from a data source", i.Readonly|i.Idempotent|i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"provider": map[string]any{
@@ -69,16 +72,16 @@ func Read(providerManager types.ProviderManager) i.Tool {
 }
 
 func read(providerManager types.ProviderManager) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args readArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args readArgs) (*mcp.CallToolResult, error) {
 		// Read data source using provider manager
 		stateResult, err := providerManager.ReadDataSource(ctx, args.GetProvider(), args.DataSourceType, args.Config)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to read data source: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to read data source: %v", err)), nil
 		}
 
 		// Handle empty state case
 		if len(stateResult) == 0 {
-			return mcp.NewToolResultText("{}"), nil
+			return i.NewToolResultText("{}"), nil
 		}
 
 		return i.RespondJSON(map[string]any{

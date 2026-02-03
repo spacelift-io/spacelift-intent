@@ -8,8 +8,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
@@ -29,8 +30,13 @@ func newResourceOperation(input types.ResourceOperationInput) (types.ResourceOpe
 func RespondJSON(response map[string]any) (*mcp.CallToolResult, error) {
 	result, err := json.Marshal(response)
 	if err != nil {
-		return mcp.NewToolResultError(fmt.Sprintf("Failed to marshal result: %v", err)), nil
+		return i.NewToolResultError(fmt.Sprintf("Failed to marshal result: %v", err)), nil
 	}
 
-	return mcp.NewToolResultText(string(result)), nil
+	return i.NewToolResultText(string(result)), nil
+}
+
+// NewToolResultText creates a text content result (convenience wrapper).
+func NewToolResultText(text string) *mcp.CallToolResult {
+	return i.NewToolResultText(text)
 }

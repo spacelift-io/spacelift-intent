@@ -6,11 +6,11 @@ package internal
 import (
 	"context"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // ToolHandler is the function signature for MCP tool handlers
-type ToolHandler = func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error)
+type ToolHandler = func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error)
 
 type Tool struct {
 	Tool    mcp.Tool

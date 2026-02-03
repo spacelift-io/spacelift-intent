@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/tools/provider"
@@ -29,8 +29,8 @@ func Delete(storage types.Storage, providerManager types.ProviderManager, regist
 			"complexity analysis. Require explicit 'CONFIRM' response before proceeding. " +
 			"\n\nPresentation: Present results using Infrastructure Configuration Analysis " +
 			"format with REMOVE section.",
-		Annotations: i.ToolAnnotations("Delete a managed resource", i.Destructive|i.Idempotent|i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Delete a managed resource", i.Destructive|i.Idempotent|i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -44,22 +44,22 @@ func Delete(storage types.Storage, providerManager types.ProviderManager, regist
 }
 
 func deleteResource(storage types.Storage, providerManager types.ProviderManager, registryClient types.RegistryClient) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args deleteArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args deleteArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to get state: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to get state: %v", err)), nil
 		}
 
 		if record == nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
+			return i.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
 		}
 
 		// If provider version is missing, search for it
 		if record.ProviderVersion == "" {
 			providerResult, err := provider.SearchForProvider(ctx, registryClient, record.Provider)
 			if err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("Failed to retrieve provider version: %v", err)), nil
+				return i.NewToolResultError(fmt.Sprintf("Failed to retrieve provider version: %v", err)), nil
 			}
 			record.ProviderVersion = providerResult.Provider.Version
 		}
@@ -76,7 +76,7 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 
 		operation, err := newResourceOperation(input)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
 		}
 
 		defer func() {
@@ -91,7 +91,7 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 		err = providerManager.DeleteResource(ctx, record.GetProvider(), record.ResourceType, record.State)
 		if err != nil {
 			err = fmt.Errorf("failed to delete resource: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		// Add operation context for automatic history tracking
@@ -101,7 +101,7 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 		// Delete the state from database (dependencies automatically cleaned up via CASCADE)
 		if err = storage.DeleteState(ctx, args.ResourceID); err != nil {
 			err = fmt.Errorf("failed to delete state from database: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		return RespondJSON(map[string]any{

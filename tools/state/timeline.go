@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -24,8 +24,8 @@ func Timeline(storage types.Storage) i.Tool {
 			"operation summaries, and impact analysis. " +
 			"\n\nCritical for tracking who made changes, when they occurred, and understanding " +
 			"deployment patterns for operational excellence.",
-		Annotations: i.ToolAnnotations("Get state timeline events", i.Readonly|i.Idempotent),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Get state timeline events", i.Readonly|i.Idempotent)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -56,10 +56,10 @@ func Timeline(storage types.Storage) i.Tool {
 }
 
 func timeline(storage types.Storage) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args types.TimelineQuery) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args types.TimelineQuery) (*mcp.CallToolResult, error) {
 		response, err := storage.GetTimeline(ctx, args)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to get timeline: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to get timeline: %v", err)), nil
 		}
 
 		return i.RespondJSON(response)

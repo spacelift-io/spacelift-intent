@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -32,8 +32,8 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
 			"Do not assume provider names or versions - always search first. " +
 			"\n\nUse this tool after finding a provider to understand its capabilities before resource creation - essential for discovering available resource types, data sources, and configuration requirements. Critical for the Configuration Phase workflow to validate resource definitions and ensure proper provider argument handling.",
-		Annotations: i.ToolAnnotations("Show the provider config", i.Readonly|i.Idempotent),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Show the provider config", i.Readonly|i.Idempotent)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"provider": map[string]any{
@@ -51,10 +51,10 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 }
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
 		versions, err := providerManager.GetProviderVersions(ctx, types.ProviderConfig{Name: args.Provider})
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to get provider versions: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to get provider versions: %v", err)), nil
 		}
 		versionsStrings := make([]string, len(versions))
 		for i, v := range versions {
@@ -70,12 +70,12 @@ func describe(providerManager types.ProviderManager) i.ToolHandler {
 			}
 		}
 		if !found {
-			return mcp.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", args.Version, args.Provider, availableVersions)), nil
+			return i.NewToolResultError(fmt.Sprintf("Provider version '%s' not found for provider '%s'. Available versions: %v", args.Version, args.Provider, availableVersions)), nil
 		}
 
 		schema, confErr, err := providerManager.DescribeProvider(ctx, args.GetProvider())
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to get provider schema: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to get provider schema: %v", err)), nil
 		}
 
 		dataSourceTypes := make([]string, 0, len(schema.DataSources))

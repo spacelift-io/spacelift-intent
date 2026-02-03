@@ -6,7 +6,6 @@ package test
 import (
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +17,7 @@ func TestServerInitialization(t *testing.T) {
 	th := testhelper.NewTestHelper(t)
 	defer th.Cleanup()
 
-	tools, err := th.Client.ListTools(th.Ctx, mcp.ListToolsRequest{})
+	tools, err := th.ListTools()
 	require.NoError(t, err, "Should be able to list tools")
 	assert.Greater(t, len(tools.Tools), 0, "Should have at least one tool")
 

@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -16,6 +16,9 @@ import (
 type getArgs struct {
 	ResourceID string `json:"resource_id"`
 }
+
+// ptrTo returns a pointer to the given value.
+func ptrTo[T any](v T) *T { return &v }
 
 func Get(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
@@ -28,8 +31,8 @@ func Get(storage types.Storage) i.Tool {
 			"dependency mapping, and impact analysis formatting. " +
 			"\n\nCritical for Safety Protocol to verify state consistency and review what " +
 			"resources will be affected by changes.",
-		Annotations: i.ToolAnnotations("Get resource state", i.Readonly|i.Idempotent),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: ptrTo(i.ToolAnnotations("Get resource state", i.Readonly|i.Idempotent)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -43,14 +46,14 @@ func Get(storage types.Storage) i.Tool {
 }
 
 func get(storage types.Storage) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args getArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args getArgs) (*mcp.CallToolResult, error) {
 		record, err := storage.GetState(ctx, args.ResourceID)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to get state: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to get state: %v", err)), nil
 		}
 
 		if record == nil {
-			return mcp.NewToolResultError(fmt.Sprintf("No state found for ID '%s'", args.ResourceID)), nil
+			return i.NewToolResultError(fmt.Sprintf("No state found for ID '%s'", args.ResourceID)), nil
 		}
 
 		// Get dependencies (what this resource depends on)
