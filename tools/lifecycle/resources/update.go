@@ -33,7 +33,7 @@ func Update(storage types.Storage, providerManager types.ProviderManager, regist
 			"\n\nPresentation: Present results using Infrastructure Configuration Analysis " +
 			"format with MODIFY section and risk assessment. On errors, use OpenTofu MCP Server " +
 			"error format with root cause analysis and recommended fixes.",
-		Annotations: ptrTo(i.ToolAnnotations("Update resource with a new configuration", i.Idempotent|i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Update resource with a new configuration", i.Idempotent|i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -127,7 +127,7 @@ func update(storage types.Storage, providerManager types.ProviderManager, regist
 			return i.NewToolResultError(err.Error()), nil
 		}
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"provider":         record.GetProvider().Name,
 			"provider_version": record.GetProvider().Version,
 			"resource_id":      args.ResourceID,

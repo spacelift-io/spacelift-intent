@@ -21,7 +21,7 @@ func Eject(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("state-eject"),
 		Description: "Remove a resource from the state - stop managing lifecycle without deleting the actual resource. MEDIUM risk operation that removes MCP management while preserving actual infrastructure. Use this to transition resources back to manual management or transfer to different management systems. Critical Safety Protocol: verify no dependents exist before ejection to avoid breaking dependency chains.",
-		Annotations: ptrTo(i.ToolAnnotations("Remove a resource from the state", i.Destructive|i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Remove a resource from the state", i.Destructive|i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

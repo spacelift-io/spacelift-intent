@@ -29,7 +29,7 @@ func Delete(storage types.Storage, providerManager types.ProviderManager, regist
 			"complexity analysis. Require explicit 'CONFIRM' response before proceeding. " +
 			"\n\nPresentation: Present results using Infrastructure Configuration Analysis " +
 			"format with REMOVE section.",
-		Annotations: ptrTo(i.ToolAnnotations("Delete a managed resource", i.Destructive|i.Idempotent|i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Delete a managed resource", i.Destructive|i.Idempotent|i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -104,7 +104,7 @@ func deleteResource(storage types.Storage, providerManager types.ProviderManager
 			return i.NewToolResultError(err.Error()), nil
 		}
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"provider":         record.GetProvider().Name,
 			"provider_version": record.GetProvider().Version,
 			"resource_id":      args.ResourceID,

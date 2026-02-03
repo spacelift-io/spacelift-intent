@@ -21,18 +21,19 @@ const (
 	OpenWorld
 )
 
-// boolPtr returns a pointer to the given bool value.
-func boolPtr(b bool) *bool { return &b }
-
 // ToolAnnotations creates an MCP tool annotation with the specified title and hint flags.
 // Hint flags can be combined using bitwise OR (e.g., READONLY|IDEMPOTENT).
 // Pass 0 for hints if no special behavior hints are needed.
+//
+// Note: ReadOnlyHint and IdempotentHint are bool, while DestructiveHint and OpenWorldHint
+// are *bool per the MCP SDK's ToolAnnotations struct definition. This asymmetry is intentional
+// as the SDK uses pointer types for optional hints that default to unknown/unspecified.
 func ToolAnnotations(title string, hints AnnotationHint) mcp.ToolAnnotations {
 	return mcp.ToolAnnotations{
 		Title:           title,
 		ReadOnlyHint:    hints&Readonly != 0,
-		DestructiveHint: boolPtr(hints&Destructive != 0),
+		DestructiveHint: PtrTo(hints&Destructive != 0),
 		IdempotentHint:  hints&Idempotent != 0,
-		OpenWorldHint:   boolPtr(hints&OpenWorld != 0),
+		OpenWorldHint:   PtrTo(hints&OpenWorld != 0),
 	}
 }

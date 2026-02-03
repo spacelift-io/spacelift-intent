@@ -26,9 +26,6 @@ func (args describeArgs) GetProvider() *types.ProviderConfig {
 	}
 }
 
-// ptrTo returns a pointer to the given value.
-func ptrTo[T any](v T) *T { return &v }
-
 func Describe(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("provider-resources-describe"),
@@ -44,7 +41,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 			"arrays to null or [], objects to null or {}. " +
 			"\n\nError Handling: When encountering argument mismatches, use Provider Argument " +
 			"Count Mismatch format showing expected vs received counts with auto-resolution strategy.",
-		Annotations: ptrTo(i.ToolAnnotations("Get schema for a specific resource type", i.Readonly|i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Get schema for a specific resource type", i.Readonly|i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

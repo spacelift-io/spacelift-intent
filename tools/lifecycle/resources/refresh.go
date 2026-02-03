@@ -30,7 +30,7 @@ func Refresh(storage types.Storage, providerManager types.ProviderManager, regis
 			"(FRESH/DRIFTED/DELETED). Use structured format showing detected changes and their " +
 			"impact. \n\nCritical for monitoring resource health and identifying external " +
 			"changes that may affect infrastructure consistency.",
-		Annotations: ptrTo(i.ToolAnnotations("Refresh an existing resource", i.Idempotent|i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Refresh an existing resource", i.Idempotent|i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -130,7 +130,7 @@ func refresh(storage types.Storage, providerManager types.ProviderManager, regis
 
 		}
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"provider":         record.GetProvider().Name,
 			"provider_version": record.GetProvider().Version,
 			"resource_id":      args.ResourceID,

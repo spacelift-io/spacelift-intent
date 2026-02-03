@@ -32,7 +32,7 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 			"\n\nMANDATORY PREREQUISITE: You MUST call provider-search first to discover the provider and its available versions before using this tool. " +
 			"Do not assume provider names or versions - always search first. " +
 			"\n\nUse this tool after finding a provider to understand its capabilities before resource creation - essential for discovering available resource types, data sources, and configuration requirements. Critical for the Configuration Phase workflow to validate resource definitions and ensure proper provider argument handling.",
-		Annotations: ptrTo(i.ToolAnnotations("Show the provider config", i.Readonly|i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Show the provider config", i.Readonly|i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

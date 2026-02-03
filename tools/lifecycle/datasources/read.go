@@ -29,9 +29,6 @@ func (args readArgs) GetProvider() *types.ProviderConfig {
 	}
 }
 
-// ptrTo returns a pointer to the given value.
-func ptrTo[T any](v T) *T { return &v }
-
 func Read(providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-datasources-read"),
@@ -45,7 +42,7 @@ func Read(providerManager types.ProviderManager) i.Tool {
 			"\n\nArgument Handling: Set unknown/optional arguments to appropriate defaults: " +
 			"strings to null or '', booleans to null or false, numbers to null or 0, arrays " +
 			"to null or [], objects to null or {}. Ensure ALL required arguments are provided.",
-		Annotations: ptrTo(i.ToolAnnotations("Read data from a data source", i.Readonly|i.Idempotent|i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Read data from a data source", i.Readonly|i.Idempotent|i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

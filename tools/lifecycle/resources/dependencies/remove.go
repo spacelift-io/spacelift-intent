@@ -22,7 +22,7 @@ func Remove(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("lifecycle-resources-dependencies-remove"),
 		Description: "Explicitly remove a dependency relationship between two resources. MEDIUM risk operation that modifies resource ordering and dependency chains. Use with caution - removing dependencies can affect deployment sequences and potentially cause resource lifecycle issues. Verify impact on dependent resources before removing to maintain infrastructure stability.",
-		Annotations: ptrTo(i.ToolAnnotations("Explicitly remove between two resources", i.Destructive|i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Explicitly remove between two resources", i.Destructive|i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

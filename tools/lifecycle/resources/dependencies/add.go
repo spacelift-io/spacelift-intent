@@ -13,9 +13,6 @@ import (
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
-// ptrTo returns a pointer to the given value.
-func ptrTo[T any](v T) *T { return &v }
-
 func Add(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-dependencies-add"),
@@ -35,7 +32,7 @@ Dependencies:
 1. from_resource_id = instance; to_resource_id = instance_profile
 2. from_resource_id = instance_profile; to_resource_id = ec2-role
 ec2-role is a dependency for the instance_profile, and instance_profile is a dependent for ec2-role (relies on it)`,
-		Annotations: ptrTo(i.ToolAnnotations("Explicitly add a dependency between two resources", i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Explicitly add a dependency between two resources", i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

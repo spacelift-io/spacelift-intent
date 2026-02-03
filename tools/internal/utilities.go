@@ -34,3 +34,6 @@ func NewToolResultError(text string) *mcp.CallToolResult {
 		IsError: true,
 	}
 }
+
+// PtrTo returns a pointer to the given value.
+func PtrTo[T any](v T) *T { return &v }

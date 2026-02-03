@@ -24,7 +24,7 @@ func Timeline(storage types.Storage) i.Tool {
 			"operation summaries, and impact analysis. " +
 			"\n\nCritical for tracking who made changes, when they occurred, and understanding " +
 			"deployment patterns for operational excellence.",
-		Annotations: ptrTo(i.ToolAnnotations("Get state timeline events", i.Readonly|i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Get state timeline events", i.Readonly|i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

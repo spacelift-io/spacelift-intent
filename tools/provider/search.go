@@ -18,15 +18,12 @@ type searchArgs struct {
 	Query string `json:"query"`
 }
 
-// ptrTo returns a pointer to the given value.
-func ptrTo[T any](v T) *T { return &v }
-
 // Search creates a tool for searching OpenTofu providers in the registry.
 func Search(registryClient types.RegistryClient) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("provider-search"),
 		Description: "Search for an available provider in the OpenTofu registry. Use this tool to discover providers before resource creation - essential for finding the correct provider namespace (e.g., 'hashicorp/aws', 'hashicorp/random') needed for infrastructure operations. Returns the most popular matching provider with its full address, version, and metadata. Present results with clear provider identification and next steps for schema analysis.",
-		Annotations: ptrTo(i.ToolAnnotations("Search for a provider", i.Readonly|i.Idempotent|i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Search for a provider", i.Readonly|i.Idempotent|i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

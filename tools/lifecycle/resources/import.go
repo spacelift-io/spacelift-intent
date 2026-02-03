@@ -46,7 +46,7 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"format showing imported resources. On errors, use OpenTofu MCP Server error format " +
 			"with import-specific troubleshooting guidance. " +
 			"\n\nEssential for migrating from manual infrastructure to managed infrastructure as code.",
-		Annotations: ptrTo(i.ToolAnnotations("Import an external resource resource", i.Idempotent|i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Import an external resource resource", i.Idempotent|i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -144,7 +144,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		operation.ProposedState = state
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"provider":         args.GetProvider().Name,
 			"provider_version": args.GetProvider().Version,
 			"import_id":        args.ImportID,

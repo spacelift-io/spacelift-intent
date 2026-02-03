@@ -40,7 +40,7 @@ func Operations(storage types.Storage) i.Tool {
 			"Include both human-readable summary and JSON format for programmatic access. " +
 			"\n\nCritical for tracking resource lifecycle events and maintaining operational " +
 			"visibility of infrastructure changes.",
-		Annotations: ptrTo(i.ToolAnnotations("List operations on resources", i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("List operations on resources", i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

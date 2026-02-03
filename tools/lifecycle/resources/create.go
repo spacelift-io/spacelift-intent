@@ -30,9 +30,6 @@ func (args createArgs) GetProvider() *types.ProviderConfig {
 	}
 }
 
-// ptrTo returns a pointer to the given value.
-func ptrTo[T any](v T) *T { return &v }
-
 func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("lifecycle-resources-create"),
@@ -51,7 +48,7 @@ func Create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"Analysis format with CREATE section, risk assessment, and next steps. For provider " +
 			"argument mismatches, use Provider Argument Count Mismatch format with auto-resolution " +
 			"strategy. \n\nHint: may want to add a dependency if applicable.",
-		Annotations: ptrTo(i.ToolAnnotations("Create a new managed resource", i.OpenWorld)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Create a new managed resource", i.OpenWorld)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
@@ -144,7 +141,7 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		operation.Failed = nil
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"resource_id":      args.ResourceID,
 			"provider":         args.GetProvider().Name,
 			"provider_version": args.GetProvider().Version,

@@ -25,9 +25,6 @@ func TestAnnotationHintConstants(t *testing.T) {
 	}
 }
 
-// boolPtr is a helper for creating pointers to bool values in tests
-func boolPtrTest(b bool) *bool { return &b }
-
 func TestToolAnnotations(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -42,9 +39,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "Test Tool",
 				ReadOnlyHint:    false,
-				DestructiveHint: boolPtrTest(false),
+				DestructiveHint: PtrTo(false),
 				IdempotentHint:  false,
-				OpenWorldHint:   boolPtrTest(false),
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
@@ -54,9 +51,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "Read Tool",
 				ReadOnlyHint:    true,
-				DestructiveHint: boolPtrTest(false),
+				DestructiveHint: PtrTo(false),
 				IdempotentHint:  false,
-				OpenWorldHint:   boolPtrTest(false),
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
@@ -66,9 +63,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "Delete Tool",
 				ReadOnlyHint:    false,
-				DestructiveHint: boolPtrTest(true),
+				DestructiveHint: PtrTo(true),
 				IdempotentHint:  false,
-				OpenWorldHint:   boolPtrTest(false),
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
@@ -78,9 +75,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "Create Tool",
 				ReadOnlyHint:    false,
-				DestructiveHint: boolPtrTest(false),
+				DestructiveHint: PtrTo(false),
 				IdempotentHint:  true,
-				OpenWorldHint:   boolPtrTest(false),
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
@@ -90,9 +87,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "Search Tool",
 				ReadOnlyHint:    false,
-				DestructiveHint: boolPtrTest(false),
+				DestructiveHint: PtrTo(false),
 				IdempotentHint:  false,
-				OpenWorldHint:   boolPtrTest(true),
+				OpenWorldHint:   PtrTo(true),
 			},
 		},
 		{
@@ -102,9 +99,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "Multi Tool",
 				ReadOnlyHint:    true,
-				DestructiveHint: boolPtrTest(false),
+				DestructiveHint: PtrTo(false),
 				IdempotentHint:  true,
-				OpenWorldHint:   boolPtrTest(false),
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
@@ -114,9 +111,9 @@ func TestToolAnnotations(t *testing.T) {
 			expectedResult: mcp.ToolAnnotations{
 				Title:           "All Tool",
 				ReadOnlyHint:    true,
-				DestructiveHint: boolPtrTest(true),
+				DestructiveHint: PtrTo(true),
 				IdempotentHint:  true,
-				OpenWorldHint:   boolPtrTest(true),
+				OpenWorldHint:   PtrTo(true),
 			},
 		},
 	}

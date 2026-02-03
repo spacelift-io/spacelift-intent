@@ -17,7 +17,7 @@ func Get(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("lifecycle-resources-dependencies-get"),
 		Description: "Get dependency relationships for a resource, showing both what it depends on (dependencies) and what depends on it (dependents). LOW risk operation for understanding resource relationships and dependency chains. Essential for dependency analysis, troubleshooting circular dependencies, and planning changes that might affect related resources.",
-		Annotations: ptrTo(i.ToolAnnotations("Get dependency relationships for a resource", i.Readonly)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Get dependency relationships for a resource", i.Readonly)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{

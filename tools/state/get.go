@@ -17,9 +17,6 @@ type getArgs struct {
 	ResourceID string `json:"resource_id"`
 }
 
-// ptrTo returns a pointer to the given value.
-func ptrTo[T any](v T) *T { return &v }
-
 func Get(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name: string("state-get"),
@@ -31,7 +28,7 @@ func Get(storage types.Storage) i.Tool {
 			"dependency mapping, and impact analysis formatting. " +
 			"\n\nCritical for Safety Protocol to verify state consistency and review what " +
 			"resources will be affected by changes.",
-		Annotations: ptrTo(i.ToolAnnotations("Get resource state", i.Readonly|i.Idempotent)),
+		Annotations: i.PtrTo(i.ToolAnnotations("Get resource state", i.Readonly|i.Idempotent)),
 		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
