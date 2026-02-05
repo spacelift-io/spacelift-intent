@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -46,8 +46,8 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 			"format showing imported resources. On errors, use OpenTofu MCP Server error format " +
 			"with import-specific troubleshooting guidance. " +
 			"\n\nEssential for migrating from manual infrastructure to managed infrastructure as code.",
-		Annotations: i.ToolAnnotations("Import an external resource resource", i.Idempotent|i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: i.PtrTo(i.ToolAnnotations("Import an external resource resource", i.Idempotent|i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"import_id": map[string]any{
@@ -77,14 +77,14 @@ func Import(storage types.Storage, providerManager types.ProviderManager) i.Tool
 }
 
 func _import(storage types.Storage, providerManager types.ProviderManager) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args importArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args importArgs) (*mcp.CallToolResult, error) {
 		// Check if ID already exists
 		existingState, err := storage.GetState(ctx, args.DestinationID)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to check existing state: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to check existing state: %v", err)), nil
 		}
 		if existingState != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' already exists", args.DestinationID)), nil
+			return i.NewToolResultError(fmt.Sprintf("Resource with ID '%s' already exists", args.DestinationID)), nil
 		}
 
 		input := types.ResourceOperationInput{
@@ -99,7 +99,7 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		operation, err := newResourceOperation(input)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
 		}
 
 		defer func() {
@@ -114,14 +114,14 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 		state, err := providerManager.ImportResource(ctx, args.GetProvider(), args.ResourceType, args.ImportID)
 		if err != nil {
 			err = fmt.Errorf("failed to import resource: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case - for import, this indicates the resource doesn't exist
 		// TODO: Figure out if we want to handle empty state case for import here or in the providerManager
 		if len(state) == 0 {
 			err = fmt.Errorf("resource with ID '%s' does not exist or returned empty state", args.ImportID)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		// Persist state to database
@@ -139,12 +139,12 @@ func _import(storage types.Storage, providerManager types.ProviderManager) i.Too
 
 		if err = storage.SaveState(ctx, record); err != nil {
 			err = fmt.Errorf("failed to save state: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		operation.ProposedState = state
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"provider":         args.GetProvider().Name,
 			"provider_version": args.GetProvider().Version,
 			"import_id":        args.ImportID,

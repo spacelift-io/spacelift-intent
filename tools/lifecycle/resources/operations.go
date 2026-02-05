@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -40,8 +40,8 @@ func Operations(storage types.Storage) i.Tool {
 			"Include both human-readable summary and JSON format for programmatic access. " +
 			"\n\nCritical for tracking resource lifecycle events and maintaining operational " +
 			"visibility of infrastructure changes.",
-		Annotations: i.ToolAnnotations("List operations on resources", i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: i.PtrTo(i.ToolAnnotations("List operations on resources", i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -78,11 +78,11 @@ func Operations(storage types.Storage) i.Tool {
 }
 
 func operations(storage types.Storage) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args operationsArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args operationsArgs) (*mcp.CallToolResult, error) {
 		currentPage := 1
 		if args.Page != nil {
 			if *args.Page < 1 {
-				return mcp.NewToolResultError("Invalid page: must be greater than or equal to 1"), nil
+				return i.NewToolResultError("Invalid page: must be greater than or equal to 1"), nil
 			}
 			currentPage = *args.Page
 		}
@@ -90,7 +90,7 @@ func operations(storage types.Storage) i.ToolHandler {
 		pageSize := defaultOperationsPageSize
 		if args.PageSize != nil {
 			if *args.PageSize < 1 {
-				return mcp.NewToolResultError("Invalid page_size: must be greater than or equal to 1"), nil
+				return i.NewToolResultError("Invalid page_size: must be greater than or equal to 1"), nil
 			}
 			pageSize = *args.PageSize
 			if pageSize > maxOperationsPageSize {
@@ -111,7 +111,7 @@ func operations(storage types.Storage) i.ToolHandler {
 		})
 
 		if err != nil {
-			return mcp.NewToolResultError("Failed to list operations: " + err.Error()), nil
+			return i.NewToolResultError("Failed to list operations: " + err.Error()), nil
 		}
 
 		hasMore := false
@@ -152,13 +152,13 @@ func operations(storage types.Storage) i.ToolHandler {
 			"operations": operations,
 		})
 		if err != nil {
-			return mcp.NewToolResultError("Failed to marshal operations: " + err.Error()), nil
+			return i.NewToolResultError("Failed to marshal operations: " + err.Error()), nil
 		}
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				mcp.TextContent{Type: "text", Text: output},
-				mcp.TextContent{Type: "text", Text: "JSON format:\n" + string(responseJSON)},
+				&mcp.TextContent{Text: output},
+				&mcp.TextContent{Text: "JSON format:\n" + string(responseJSON)},
 			},
 		}, nil
 	})

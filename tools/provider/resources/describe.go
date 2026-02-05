@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -41,8 +41,8 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 			"arrays to null or [], objects to null or {}. " +
 			"\n\nError Handling: When encountering argument mismatches, use Provider Argument " +
 			"Count Mismatch format showing expected vs received counts with auto-resolution strategy.",
-		Annotations: i.ToolAnnotations("Get schema for a specific resource type", i.Readonly|i.Idempotent),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: i.PtrTo(i.ToolAnnotations("Get schema for a specific resource type", i.Readonly|i.Idempotent)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"provider": map[string]any{
@@ -64,11 +64,11 @@ func Describe(providerManager types.ProviderManager) i.Tool {
 }
 
 func describe(providerManager types.ProviderManager) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args describeArgs) (*mcp.CallToolResult, error) {
 		// Describe resource using provider manager
 		description, err := providerManager.DescribeResource(ctx, args.GetProvider(), args.ResourceType)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to describe resource: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to describe resource: %v", err)), nil
 		}
 
 		return i.RespondJSON(map[string]any{

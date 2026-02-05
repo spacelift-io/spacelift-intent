@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/tools/provider"
@@ -33,8 +33,8 @@ func Update(storage types.Storage, providerManager types.ProviderManager, regist
 			"\n\nPresentation: Present results using Infrastructure Configuration Analysis " +
 			"format with MODIFY section and risk assessment. On errors, use OpenTofu MCP Server " +
 			"error format with root cause analysis and recommended fixes.",
-		Annotations: i.ToolAnnotations("Update resource with a new configuration", i.Idempotent|i.OpenWorld),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: i.PtrTo(i.ToolAnnotations("Update resource with a new configuration", i.Idempotent|i.OpenWorld)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -52,22 +52,22 @@ func Update(storage types.Storage, providerManager types.ProviderManager, regist
 }
 
 func update(storage types.Storage, providerManager types.ProviderManager, registryClient types.RegistryClient) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, args updateArgs) (*mcp.CallToolResult, error) {
 		// Get the current state from database
 		record, err := storage.GetState(ctx, args.ResourceID)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to get current state: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to get current state: %v", err)), nil
 		}
 
 		if record == nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
+			return i.NewToolResultError(fmt.Sprintf("Resource with ID '%s' not found", args.ResourceID)), nil
 		}
 
 		// If provider version is missing, search for it
 		if record.ProviderVersion == "" {
 			providerResult, err := provider.SearchForProvider(ctx, registryClient, record.Provider)
 			if err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("Failed to retrieve provider version: %v", err)), nil
+				return i.NewToolResultError(fmt.Sprintf("Failed to retrieve provider version: %v", err)), nil
 			}
 			record.ProviderVersion = providerResult.Provider.Version
 		}
@@ -85,7 +85,7 @@ func update(storage types.Storage, providerManager types.ProviderManager, regist
 
 		operation, err := newResourceOperation(input)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
+			return i.NewToolResultError(fmt.Sprintf("Failed to create operation resource: %v", err)), nil
 		}
 
 		defer func() {
@@ -100,12 +100,12 @@ func update(storage types.Storage, providerManager types.ProviderManager, regist
 		state, err := providerManager.UpdateResource(ctx, record.GetProvider(), record.ResourceType, record.State, args.Config)
 		if err != nil {
 			err = fmt.Errorf("failed to update resource: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
 		// Handle empty state case
 		if len(state) == 0 {
-			return mcp.NewToolResultText("{}"), nil
+			return i.NewToolResultText("{}"), nil
 		}
 
 		// Update state in database
@@ -124,10 +124,10 @@ func update(storage types.Storage, providerManager types.ProviderManager, regist
 
 		if err = storage.SaveState(ctx, updatedRecord); err != nil {
 			err = fmt.Errorf("failed to save updated state: %w", err)
-			return mcp.NewToolResultError(err.Error()), nil
+			return i.NewToolResultError(err.Error()), nil
 		}
 
-		return RespondJSON(map[string]any{
+		return i.RespondJSON(map[string]any{
 			"provider":         record.GetProvider().Name,
 			"provider_version": record.GetProvider().Version,
 			"resource_id":      args.ResourceID,

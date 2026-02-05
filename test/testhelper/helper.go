@@ -11,10 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/mcptest"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite" // Import SQLite driver for database/sql.
 
@@ -32,8 +29,8 @@ type TestHelper struct {
 	cancel  context.CancelFunc
 	tempDir string
 	dbDir   string
-	server  *mcptest.Server
-	Client  *client.Client
+	server  *mcp.Server
+	session *mcp.ClientSession
 	Storage types.Storage
 }
 
@@ -67,23 +64,26 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	// Create tool handlers
 	toolHandlers := tools.New(registryClient, providerManager, store)
 
-	// Convert tools to server tools
-	mcpTools := toolHandlers.Tools()
-	serverTools := make([]server.ServerTool, 0, len(mcpTools))
-	for _, tool := range mcpTools {
-		serverTools = append(serverTools, server.ServerTool{
-			Tool:    tool.Tool,
-			Handler: tool.Handler,
-		})
+	// Create test server
+	server := mcp.NewServer(&mcp.Implementation{Name: t.Name(), Version: "1.0.0"}, nil)
+	for _, tool := range toolHandlers.Tools() {
+		server.AddTool(&tool.Tool, tool.Handler)
 	}
 
-	// Create test server
-	testServer := mcptest.NewUnstartedServer(t)
-	testServer.AddTools(serverTools...)
+	// Create in-memory transports for testing
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
-	// Start the server
-	err = testServer.Start(ctx)
-	require.NoError(t, err, "Failed to start test server")
+	// Start server in background
+	go func() {
+		if _, err := server.Connect(ctx, serverTransport, nil); err != nil && ctx.Err() == nil {
+			t.Logf("Server error: %v", err)
+		}
+	}()
+
+	// Create and connect client
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
+	session, err := client.Connect(ctx, clientTransport, nil)
+	require.NoError(t, err, "Failed to connect test client")
 
 	return &TestHelper{
 		t:       t,
@@ -91,8 +91,8 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 		cancel:  cancel,
 		tempDir: tempDir,
 		dbDir:   dbDir,
-		server:  testServer,
-		Client:  testServer.Client(),
+		server:  server,
+		session: session,
 		Storage: store,
 	}
 }
@@ -130,23 +130,26 @@ func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs 
 	// Create tool handlers
 	toolHandlers := tools.New(registryClient, providerManager, stor)
 
-	// Convert tools to server tools
-	mcpTools := toolHandlers.Tools()
-	serverTools := make([]server.ServerTool, 0, len(mcpTools))
-	for _, tool := range mcpTools {
-		serverTools = append(serverTools, server.ServerTool{
-			Tool:    tool.Tool,
-			Handler: tool.Handler,
-		})
+	// Create test server
+	server := mcp.NewServer(&mcp.Implementation{Name: t.Name(), Version: "1.0.0"}, nil)
+	for _, tool := range toolHandlers.Tools() {
+		server.AddTool(&tool.Tool, tool.Handler)
 	}
 
-	// Create test server
-	testServer := mcptest.NewUnstartedServer(t)
-	testServer.AddTools(serverTools...)
+	// Create in-memory transports for testing
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 
-	// Start the server
-	err = testServer.Start(ctx)
-	require.NoError(t, err, "Failed to start test server")
+	// Start server in background
+	go func() {
+		if _, err := server.Connect(ctx, serverTransport, nil); err != nil && ctx.Err() == nil {
+			t.Logf("Server error: %v", err)
+		}
+	}()
+
+	// Create and connect client
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0.0"}, nil)
+	session, err := client.Connect(ctx, clientTransport, nil)
+	require.NoError(t, err, "Failed to connect test client")
 
 	return &TestHelper{
 		t:       t,
@@ -154,32 +157,35 @@ func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs 
 		cancel:  cancel,
 		tempDir: tempDir,
 		dbDir:   dbDir,
-		server:  testServer,
-		Client:  testServer.Client(),
+		server:  server,
+		session: session,
 		Storage: stor,
 	}
 }
 
 // Cleanup closes the test helper and cleans up resources
 func (th *TestHelper) Cleanup() {
-	// Cancel context first to gracefully stop operations
+	// Close client session first
+	if th.session != nil {
+		th.session.Close()
+	}
+	// Cancel context to gracefully stop server
 	if th.cancel != nil {
 		th.cancel()
-	}
-	// Then close the server after operations have stopped
-	if th.server != nil {
-		th.server.Close()
 	}
 }
 
 // CallTool is a convenience method to call an MCP tool
 func (th *TestHelper) CallTool(toolName string, args map[string]any) (*mcp.CallToolResult, error) {
-	return th.Client.CallTool(th.Ctx, mcp.CallToolRequest{
-		Params: mcp.CallToolParams{
-			Name:      toolName,
-			Arguments: args,
-		},
+	return th.session.CallTool(th.Ctx, &mcp.CallToolParams{
+		Name:      toolName,
+		Arguments: args,
 	})
+}
+
+// ListTools returns the list of tools available on the server
+func (th *TestHelper) ListTools() (*mcp.ListToolsResult, error) {
+	return th.session.ListTools(th.Ctx, &mcp.ListToolsParams{})
 }
 
 // AssertToolSuccess asserts that a tool call was successful
@@ -198,7 +204,7 @@ func (th *TestHelper) GetTextContent(result *mcp.CallToolResult) string {
 	if len(result.Content) == 0 {
 		return ""
 	}
-	if textContent, ok := mcp.AsTextContent(result.Content[0]); ok {
+	if textContent, ok := result.Content[0].(*mcp.TextContent); ok {
 		return textContent.Text
 	}
 	return ""

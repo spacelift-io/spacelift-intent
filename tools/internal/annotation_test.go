@@ -6,7 +6,7 @@ package internal
 import (
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestAnnotationHintConstants(t *testing.T) {
@@ -30,90 +30,90 @@ func TestToolAnnotations(t *testing.T) {
 		name           string
 		title          string
 		hints          AnnotationHint
-		expectedResult mcp.ToolAnnotation
+		expectedResult mcp.ToolAnnotations
 	}{
 		{
 			name:  "no hints",
 			title: "Test Tool",
 			hints: 0,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "Test Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(false),
-				DestructiveHint: mcp.ToBoolPtr(false),
-				IdempotentHint:  mcp.ToBoolPtr(false),
-				OpenWorldHint:   mcp.ToBoolPtr(false),
+				ReadOnlyHint:    false,
+				DestructiveHint: PtrTo(false),
+				IdempotentHint:  false,
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
 			name:  "readonly hint",
 			title: "Read Tool",
 			hints: Readonly,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "Read Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(true),
-				DestructiveHint: mcp.ToBoolPtr(false),
-				IdempotentHint:  mcp.ToBoolPtr(false),
-				OpenWorldHint:   mcp.ToBoolPtr(false),
+				ReadOnlyHint:    true,
+				DestructiveHint: PtrTo(false),
+				IdempotentHint:  false,
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
 			name:  "destructive hint",
 			title: "Delete Tool",
 			hints: Destructive,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "Delete Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(false),
-				DestructiveHint: mcp.ToBoolPtr(true),
-				IdempotentHint:  mcp.ToBoolPtr(false),
-				OpenWorldHint:   mcp.ToBoolPtr(false),
+				ReadOnlyHint:    false,
+				DestructiveHint: PtrTo(true),
+				IdempotentHint:  false,
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
 			name:  "idempotent hint",
 			title: "Create Tool",
 			hints: Idempotent,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "Create Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(false),
-				DestructiveHint: mcp.ToBoolPtr(false),
-				IdempotentHint:  mcp.ToBoolPtr(true),
-				OpenWorldHint:   mcp.ToBoolPtr(false),
+				ReadOnlyHint:    false,
+				DestructiveHint: PtrTo(false),
+				IdempotentHint:  true,
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
 			name:  "open world hint",
 			title: "Search Tool",
 			hints: OpenWorld,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "Search Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(false),
-				DestructiveHint: mcp.ToBoolPtr(false),
-				IdempotentHint:  mcp.ToBoolPtr(false),
-				OpenWorldHint:   mcp.ToBoolPtr(true),
+				ReadOnlyHint:    false,
+				DestructiveHint: PtrTo(false),
+				IdempotentHint:  false,
+				OpenWorldHint:   PtrTo(true),
 			},
 		},
 		{
 			name:  "multiple hints combined",
 			title: "Multi Tool",
 			hints: Readonly | Idempotent,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "Multi Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(true),
-				DestructiveHint: mcp.ToBoolPtr(false),
-				IdempotentHint:  mcp.ToBoolPtr(true),
-				OpenWorldHint:   mcp.ToBoolPtr(false),
+				ReadOnlyHint:    true,
+				DestructiveHint: PtrTo(false),
+				IdempotentHint:  true,
+				OpenWorldHint:   PtrTo(false),
 			},
 		},
 		{
 			name:  "all hints combined",
 			title: "All Tool",
 			hints: Readonly | Destructive | Idempotent | OpenWorld,
-			expectedResult: mcp.ToolAnnotation{
+			expectedResult: mcp.ToolAnnotations{
 				Title:           "All Tool",
-				ReadOnlyHint:    mcp.ToBoolPtr(true),
-				DestructiveHint: mcp.ToBoolPtr(true),
-				IdempotentHint:  mcp.ToBoolPtr(true),
-				OpenWorldHint:   mcp.ToBoolPtr(true),
+				ReadOnlyHint:    true,
+				DestructiveHint: PtrTo(true),
+				IdempotentHint:  true,
+				OpenWorldHint:   PtrTo(true),
 			},
 		},
 	}
@@ -126,16 +126,16 @@ func TestToolAnnotations(t *testing.T) {
 				t.Errorf("Expected title %s, got %s", tt.expectedResult.Title, result.Title)
 			}
 
-			if *result.ReadOnlyHint != *tt.expectedResult.ReadOnlyHint {
-				t.Errorf("Expected ReadOnlyHint %v, got %v", *tt.expectedResult.ReadOnlyHint, *result.ReadOnlyHint)
+			if result.ReadOnlyHint != tt.expectedResult.ReadOnlyHint {
+				t.Errorf("Expected ReadOnlyHint %v, got %v", tt.expectedResult.ReadOnlyHint, result.ReadOnlyHint)
 			}
 
 			if *result.DestructiveHint != *tt.expectedResult.DestructiveHint {
 				t.Errorf("Expected DestructiveHint %v, got %v", *tt.expectedResult.DestructiveHint, *result.DestructiveHint)
 			}
 
-			if *result.IdempotentHint != *tt.expectedResult.IdempotentHint {
-				t.Errorf("Expected IdempotentHint %v, got %v", *tt.expectedResult.IdempotentHint, *result.IdempotentHint)
+			if result.IdempotentHint != tt.expectedResult.IdempotentHint {
+				t.Errorf("Expected IdempotentHint %v, got %v", tt.expectedResult.IdempotentHint, result.IdempotentHint)
 			}
 
 			if *result.OpenWorldHint != *tt.expectedResult.OpenWorldHint {

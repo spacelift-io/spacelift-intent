@@ -4,7 +4,7 @@
 // Package internal provides utilities for creating MCP tool annotations with hint flags.
 package internal
 
-import "github.com/mark3labs/mcp-go/mcp"
+import "github.com/modelcontextprotocol/go-sdk/mcp"
 
 // AnnotationHint represents bit flags for tool annotation hints.
 // Multiple hints can be combined using bitwise OR (|).
@@ -24,12 +24,16 @@ const (
 // ToolAnnotations creates an MCP tool annotation with the specified title and hint flags.
 // Hint flags can be combined using bitwise OR (e.g., READONLY|IDEMPOTENT).
 // Pass 0 for hints if no special behavior hints are needed.
-func ToolAnnotations(title string, hints AnnotationHint) mcp.ToolAnnotation {
-	return mcp.ToolAnnotation{
+//
+// Note: ReadOnlyHint and IdempotentHint are bool, while DestructiveHint and OpenWorldHint
+// are *bool per the MCP SDK's ToolAnnotations struct definition. This asymmetry is intentional
+// as the SDK uses pointer types for optional hints that default to unknown/unspecified.
+func ToolAnnotations(title string, hints AnnotationHint) mcp.ToolAnnotations {
+	return mcp.ToolAnnotations{
 		Title:           title,
-		ReadOnlyHint:    mcp.ToBoolPtr(hints&Readonly != 0),
-		DestructiveHint: mcp.ToBoolPtr(hints&Destructive != 0),
-		IdempotentHint:  mcp.ToBoolPtr(hints&Idempotent != 0),
-		OpenWorldHint:   mcp.ToBoolPtr(hints&OpenWorld != 0),
+		ReadOnlyHint:    hints&Readonly != 0,
+		DestructiveHint: PtrTo(hints&Destructive != 0),
+		IdempotentHint:  hints&Idempotent != 0,
+		OpenWorldHint:   PtrTo(hints&OpenWorld != 0),
 	}
 }

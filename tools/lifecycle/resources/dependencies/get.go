@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	i "github.com/spacelift-io/spacelift-intent/tools/internal"
 	"github.com/spacelift-io/spacelift-intent/types"
@@ -17,8 +17,8 @@ func Get(storage types.Storage) i.Tool {
 	return i.Tool{Tool: mcp.Tool{
 		Name:        string("lifecycle-resources-dependencies-get"),
 		Description: "Get dependency relationships for a resource, showing both what it depends on (dependencies) and what depends on it (dependents). LOW risk operation for understanding resource relationships and dependency chains. Essential for dependency analysis, troubleshooting circular dependencies, and planning changes that might affect related resources.",
-		Annotations: i.ToolAnnotations("Get dependency relationships for a resource", i.Readonly),
-		InputSchema: mcp.ToolInputSchema{
+		Annotations: i.PtrTo(i.ToolAnnotations("Get dependency relationships for a resource", i.Readonly)),
+		InputSchema: i.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]any{
 				"resource_id": map[string]any{
@@ -56,7 +56,7 @@ type DependencySummary struct {
 }
 
 func get(storage types.Storage) i.ToolHandler {
-	return mcp.NewTypedToolHandler(func(ctx context.Context, _ mcp.CallToolRequest, req GetDependenciesRequest) (*mcp.CallToolResult, error) {
+	return i.NewTypedToolHandler(func(ctx context.Context, _ *mcp.CallToolRequest, req GetDependenciesRequest) (*mcp.CallToolResult, error) {
 		response := GetDependenciesResponse{
 			ResourceID: req.ResourceID,
 		}
@@ -67,7 +67,7 @@ func get(storage types.Storage) i.ToolHandler {
 		if req.Direction == "dependencies" || req.Direction == "both" {
 			response.Dependencies, err = storage.GetDependencies(ctx, req.ResourceID)
 			if err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("Failed to get dependencies: %v", err)), nil
+				return i.NewToolResultError(fmt.Sprintf("Failed to get dependencies: %v", err)), nil
 			}
 		}
 
@@ -75,7 +75,7 @@ func get(storage types.Storage) i.ToolHandler {
 		if req.Direction == "dependents" || req.Direction == "both" {
 			response.Dependents, err = storage.GetDependents(ctx, req.ResourceID)
 			if err != nil {
-				return mcp.NewToolResultError(fmt.Sprintf("Failed to get dependents: %v", err)), nil
+				return i.NewToolResultError(fmt.Sprintf("Failed to get dependents: %v", err)), nil
 			}
 		}
 
