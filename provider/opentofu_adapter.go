@@ -483,22 +483,37 @@ func (a *OpenTofuAdapter) CreateResource(ctx context.Context, providerConfig *ty
 		return nil, fmt.Errorf("apply failed: %w", err)
 	}
 
+	var applyErr error
 	if applyResp.Diagnostics().HasErrors() {
-		return nil, fmt.Errorf("apply failed: %s", a.formatDiagnostics(applyResp.Diagnostics()))
+		applyErr = fmt.Errorf("apply failed: %s", a.formatDiagnostics(applyResp.Diagnostics()))
 	}
 
-	// Convert final state back to map
-	finalStateCty, err := applyResp.PlannedNewState().AsCtyValue(resourceTypeCty)
+	// Convert final state back to map — PlannedNewState() can be nil when diagnostics have errors.
+	newState := applyResp.PlannedNewState()
+	if newState == nil {
+		if applyErr != nil {
+			return nil, applyErr
+		}
+		return nil, errors.New("apply returned nil state")
+	}
+
+	finalStateCty, err := newState.AsCtyValue(resourceTypeCty)
 	if err != nil {
+		if applyErr != nil {
+			return nil, applyErr
+		}
 		return nil, fmt.Errorf("failed to decode final state: %w", err)
 	}
 
 	finalStateMap, err := a.converter.CtyValueToMap(finalStateCty)
 	if err != nil {
+		if applyErr != nil {
+			return nil, applyErr
+		}
 		return nil, fmt.Errorf("failed to convert final state to map: %w", err)
 	}
 
-	return finalStateMap, nil
+	return finalStateMap, applyErr
 }
 
 func (a *OpenTofuAdapter) DeleteResource(ctx context.Context, providerConfig *types.ProviderConfig, resourceType string, state map[string]any) error {
