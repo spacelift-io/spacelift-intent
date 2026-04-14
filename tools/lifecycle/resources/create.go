@@ -110,13 +110,12 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 		}()
 
 		// Create resource using provider manager
-		state, err := providerManager.CreateResource(ctx, args.GetProvider(), args.ResourceType, args.Config)
-		if err != nil {
-			err = fmt.Errorf("failed to create resource: %w", err)
+		state, createErr := providerManager.CreateResource(ctx, args.GetProvider(), args.ResourceType, args.Config)
+		if createErr != nil && len(state) == 0 {
+			err = fmt.Errorf("failed to create resource: %w", createErr)
 			return i.NewToolResultError(err.Error()), nil
 		}
 
-		// Handle empty state case
 		if len(state) == 0 {
 			return i.NewToolResultText("{}"), nil
 		}
@@ -136,6 +135,11 @@ func create(storage types.Storage, providerManager types.ProviderManager) i.Tool
 
 		if err = storage.SaveState(ctx, record); err != nil {
 			err = fmt.Errorf("failed to save state: %w", err)
+			return i.NewToolResultError(err.Error()), nil
+		}
+
+		if createErr != nil {
+			err = fmt.Errorf("failed to create resource: %w", createErr)
 			return i.NewToolResultError(err.Error()), nil
 		}
 
