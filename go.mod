@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/go-version v1.9.0
 	github.com/modelcontextprotocol/go-sdk v1.4.1
 	github.com/opentofu/provider-client v0.0.0-20251028170921-ac833384ca3b
 	github.com/stretchr/testify v1.11.1
@@ -52,7 +53,7 @@ require (
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/libc v1.65.7 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

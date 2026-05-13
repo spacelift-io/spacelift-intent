@@ -21,7 +21,7 @@ func TestPlanResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -53,7 +53,7 @@ func TestCreateResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -87,7 +87,7 @@ func TestUpdateResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -136,7 +136,7 @@ func TestDeleteResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -169,7 +169,7 @@ func TestRefreshResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -208,7 +208,7 @@ func TestListResources(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -236,7 +236,7 @@ func TestDescribeResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -346,7 +346,7 @@ func TestImportResource(t *testing.T) {
 	require.NoError(t, err)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 
@@ -386,7 +386,7 @@ func TestMultipleVersionsInCache(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	registryClient := registry.NewOpenTofuClient()
-	adapter := NewOpenTofuAdapter(tmpDir, registryClient)
+	adapter := NewOpenTofuAdapter(tmpDir, registryClient, nil)
 	ctx := context.Background()
 	defer adapter.Cleanup(ctx)
 

@@ -1,0 +1,5 @@
+# Built-in "trusted" provider allowlist.
+# Enable via --provider-allowlist-file=builtin:trusted.
+providers:
+  - name: hashicorp/*
+  - name: opentofu/*
