@@ -31,9 +31,9 @@ type Allowlist struct {
 }
 
 type entry struct {
-	namespace   string
+	namespace string
 	// name is empty for a namespace wildcard ("hashicorp/*").
-	name        string
+	name string
 	// constraints is nil when no version restriction is configured.
 	constraints version.Constraints
 }

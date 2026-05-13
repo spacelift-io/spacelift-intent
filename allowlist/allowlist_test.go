@@ -159,11 +159,11 @@ func TestEmptyProvidersList_DeniesAll(t *testing.T) {
 
 func TestParse_InvalidEntries(t *testing.T) {
 	cases := map[string]string{
-		"empty name":               `providers: [{name: ""}]`,
-		"no namespace":              `providers: [{name: "/aws"}]`,
-		"no type":                   `providers: [{name: "hashicorp/"}]`,
-		"cross-namespace wildcard":  `providers: [{name: "*/aws"}]`,
-		"too many slashes":          `providers: [{name: "a/b/c"}]`,
+		"empty name":                 `providers: [{name: ""}]`,
+		"no namespace":               `providers: [{name: "/aws"}]`,
+		"no type":                    `providers: [{name: "hashicorp/"}]`,
+		"cross-namespace wildcard":   `providers: [{name: "*/aws"}]`,
+		"too many slashes":           `providers: [{name: "a/b/c"}]`,
 		"invalid version constraint": `providers: [{name: "hashicorp/aws", versions: "not a constraint"}]`,
 	}
 	for label, yamlSrc := range cases {
