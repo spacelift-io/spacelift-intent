@@ -46,18 +46,16 @@ func (c *allowlistedClient) SearchProviders(ctx context.Context, query string) (
 }
 
 func (c *allowlistedClient) FindProvider(ctx context.Context, query string) (*types.ProviderSearchResult, error) {
-	// Re-run search through the filtered path and pick the most popular hit,
-	// mirroring the inner client's behaviour but constrained to allowed names.
-	results, err := c.SearchProviders(ctx, query)
+	results, err := c.inner.SearchProviders(ctx, query)
 	if err != nil {
 		return nil, err
 	}
-	if len(results) == 0 {
-		return nil, nil
-	}
-	best := &results[0]
+	var best *types.ProviderSearchResult
 	for i := range results {
-		if results[i].Popularity > best.Popularity {
+		if c.allowlist.AllowsName(results[i].Addr) != nil {
+			continue
+		}
+		if best == nil || results[i].Popularity > best.Popularity {
 			best = &results[i]
 		}
 	}
