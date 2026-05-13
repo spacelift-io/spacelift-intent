@@ -19,14 +19,17 @@ import (
 	"github.com/opentofu/provider-client/tofuprovider/providerschema"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/spacelift-io/spacelift-intent/allowlist"
 	"github.com/spacelift-io/spacelift-intent/types"
 )
 
-// NewOpenTofuAdapter creates a new adapter using the opentofu-providers library
-func NewOpenTofuAdapter(tmpDir string, registry types.RegistryClient) types.ProviderManager {
+// NewOpenTofuAdapter creates a new adapter using the opentofu-providers library.
+// A nil or disabled allowlist permits all providers (backward-compatible default).
+func NewOpenTofuAdapter(tmpDir string, registry types.RegistryClient, al *allowlist.Allowlist) types.ProviderManager {
 	return &OpenTofuAdapter{
 		tmpDir:          tmpDir,
 		registry:        registry,
+		allowlist:       al,
 		providers:       make(map[string]tofuprovider.GRPCPluginProvider),
 		schemas:         make(map[string]*types.ProviderSchema),
 		rawSchemas:      make(map[string]providerops.GetProviderSchemaResponse),
@@ -40,6 +43,7 @@ func NewOpenTofuAdapter(tmpDir string, registry types.RegistryClient) types.Prov
 type OpenTofuAdapter struct {
 	tmpDir          string
 	registry        types.RegistryClient
+	allowlist       *allowlist.Allowlist
 	providers       map[string]tofuprovider.GRPCPluginProvider
 	schemas         map[string]*types.ProviderSchema
 	rawSchemas      map[string]providerops.GetProviderSchemaResponse // provider key -> raw schema response
@@ -61,6 +65,10 @@ func (a *OpenTofuAdapter) LoadProvider(ctx context.Context, providerConfig *type
 	// Check if already loaded
 	if _, exists := a.providers[cacheKey]; exists {
 		return nil
+	}
+
+	if err := a.allowlist.Allows(providerConfig); err != nil {
+		return err
 	}
 
 	provider, schema, rawSchema, err := a.loadProvider(ctx, providerConfig)

@@ -189,6 +189,7 @@ You can modify the behavior of Intent server by setting up:
 |------|---------------------|---------|-------------|
 | `--tmp-dir` | `TMP_DIR` | `/tmp/spacelift-intent-executor` | Temporary directory for provider binaries and state |
 | `--db-dir` | `DB_DIR` | `./.state/` | Directory containing DB files for persistent state |
+| `--provider-allowlist-file` | `PROVIDER_ALLOWLIST_FILE` | _(unset — all providers allowed)_ | Path to a YAML allowlist of permitted providers, or `builtin:trusted` for the embedded default set. See [Provider Allowlist](#provider-allowlist). |
 
 Example *Claude Desktop* configuration:
 
@@ -224,6 +225,39 @@ Example *Claude Desktop* configuration:
     }
 }
 ```
+
+### Provider Allowlist
+
+By default Intent will load any provider the model asks for from the OpenTofu Registry. To constrain this and prevent the model from pulling lookalike or untrusted providers, set `--provider-allowlist-file` (or `PROVIDER_ALLOWLIST_FILE`) to either a YAML file or the sentinel `builtin:trusted`.
+
+When the flag is unset Intent runs in its default unrestricted mode and logs a warning at startup. When set, providers outside the list are rejected before any binary is downloaded, and they are also stripped from `provider-search` results so the model never sees them.
+
+The allowlist is read once at startup. There are no MCP tools to mutate it — the trust boundary is owned by the deployer, not the agent.
+
+**Built-in `trusted` set** (`--provider-allowlist-file=builtin:trusted`) permits `hashicorp/*` and `opentofu/*`. Use this as a quick way to opt in to a sane default and extend it with your own file when you need more.
+
+**File format:**
+
+```yaml
+providers:
+  - name: hashicorp/aws
+    versions: ">= 5.0.0, < 7.0.0"   # optional, Terraform-style constraint
+  - name: hashicorp/random          # no constraint → any version
+  - name: hashicorp/*               # namespace wildcard
+  - name: integrations/github
+    versions: "~> 6.0"
+```
+
+Name patterns are either exact (`namespace/type`) or a namespace wildcard (`namespace/*`). Version constraints use the same syntax as `required_providers` blocks in Terraform/OpenTofu (`>= 1.0`, `~> 1.2`, `>= 1.0, < 2.0`).
+
+**Match semantics:** most-specific-wins. An exact-name entry overrides a namespace wildcard for the same provider. Within the same specificity tier, the provider is allowed if any entry permits its version. Version constraints do not inherit between rules — each entry is self-contained.
+
+Example: with the file above, `hashicorp/aws@4.50.0` is **denied** (the exact entry wins over the wildcard and the version fails the constraint), while `hashicorp/random@3.0.0` is **allowed** via the wildcard.
+
+**Failure modes:**
+
+- Flag set but file missing or malformed → Intent fails to start with a clear error. There is no silent fallback to "no allowlist" — that would defeat the gate.
+- Empty `providers:` list → all providers are denied (with a startup warning).
 
 ## Tools
 

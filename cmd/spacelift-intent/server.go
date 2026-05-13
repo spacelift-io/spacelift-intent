@@ -10,6 +10,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/spacelift-io/spacelift-intent/allowlist"
 	"github.com/spacelift-io/spacelift-intent/instructions"
 	"github.com/spacelift-io/spacelift-intent/provider"
 	"github.com/spacelift-io/spacelift-intent/registry"
@@ -29,9 +30,10 @@ type Server struct {
 
 // Config holds configuration for standalone server
 type Config struct {
-	TmpDir  string
-	DBDir   string
-	Storage types.Storage
+	TmpDir    string
+	DBDir     string
+	Storage   types.Storage
+	Allowlist *allowlist.Allowlist
 }
 
 // newServer creates a new standalone server instance
@@ -46,8 +48,8 @@ func newServer(config *Config) (*Server, error) {
 	}
 
 	// Create services
-	registryClient := registry.NewOpenTofuClient()
-	providerManager := provider.NewOpenTofuAdapter(config.TmpDir, registryClient)
+	registryClient := registry.NewAllowlistedClient(registry.NewOpenTofuClient(), config.Allowlist)
+	providerManager := provider.NewOpenTofuAdapter(config.TmpDir, registryClient, config.Allowlist)
 	toolHandlers := tools.New(registryClient, providerManager, config.Storage)
 
 	// Create server
@@ -62,7 +64,7 @@ func newServer(config *Config) (*Server, error) {
 		Name:    "spacelift-intent",
 		Version: "1.0.0",
 	}, &mcp.ServerOptions{
-		Instructions: instructions.Get(),
+		Instructions: instructions.GetWithAllowlist(config.Allowlist),
 	})
 
 	for _, tool := range toolHandlers.Tools() {

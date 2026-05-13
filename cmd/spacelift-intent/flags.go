@@ -19,4 +19,9 @@ var (
 		Usage:   "Directory containing DB files for persistent state",
 		Value:   "./.state/",
 	}
+	providerAllowlistFileFlag = &cli.StringFlag{
+		Name:    "provider-allowlist-file",
+		EnvVars: []string{"PROVIDER_ALLOWLIST_FILE"},
+		Usage:   "Path to YAML allowlist of permitted providers, or 'builtin:trusted' for the embedded default set; if unset, all providers are allowed",
+	}
 )
