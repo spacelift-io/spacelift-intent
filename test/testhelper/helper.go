@@ -59,7 +59,7 @@ func NewTestHelper(t *testing.T, optionalDirs ...string) *TestHelper {
 	registryClient := registry.NewOpenTofuClient()
 
 	// Initialize provider manager
-	providerManager := provider.NewOpenTofuAdapter(tempDir, registryClient)
+	providerManager := provider.NewOpenTofuAdapter(tempDir, registryClient, nil)
 
 	// Create tool handlers
 	toolHandlers := tools.New(registryClient, providerManager, store)
@@ -125,7 +125,7 @@ func NewTestHelperWithTimeout(t *testing.T, timeout time.Duration, optionalDirs 
 	registryClient := registry.NewOpenTofuClient()
 
 	// Initialize provider manager
-	providerManager := provider.NewOpenTofuAdapter(tempDir, registryClient)
+	providerManager := provider.NewOpenTofuAdapter(tempDir, registryClient, nil)
 
 	// Create tool handlers
 	toolHandlers := tools.New(registryClient, providerManager, stor)
