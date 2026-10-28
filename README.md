@@ -1,5 +1,7 @@
 # Spacelift Intent
 
+Archived: maintainers do not intend to do any future changes to this repository
+
 ![Intent](img/intent.png)
 
 Spacelift Intent is an MCP Server that lets you define cloud resources in natural language and have them provisioned by directly calling provider APIs - no OpenTofu or Terraform code required.
